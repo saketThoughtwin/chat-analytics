@@ -1,5 +1,4 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     "target": "ES2020",
     "module": "CommonJS",
@@ -16,6 +15,6 @@
 
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src/**/*", "src/types/**/*"],
   "exclude": ["node_modules", "dist"]
 }
