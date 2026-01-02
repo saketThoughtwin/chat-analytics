@@ -55,8 +55,8 @@
 
 import { Request,Response } from "express";
 import userService from "./user.service";
-import { signToken } from "../../utils/jwt";
-import { setSession } from "../../utils/redis";
+import { signToken } from "@utils/jwt";
+import { setSession } from "@utils/redis";
 class UserController {
  static async register(req:Request, res:Response){
         try{

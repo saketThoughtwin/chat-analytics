@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
-import { getSession } from "../utils/redis";
+import { verifyToken } from "@utils/jwt";
+import { getSession } from "@utils/redis";
 
 export interface AuthRequest extends Request{
     userId?:string;

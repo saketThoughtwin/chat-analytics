@@ -14,8 +14,8 @@
  */
 
 import { Router } from 'express';
-import ProfileController from '../modules/users/profile.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import ProfileController from '@modules/users/profile.controller';
+import { authMiddleware } from '@middlewares/auth.middleware';
 
 const router = Router();
 
