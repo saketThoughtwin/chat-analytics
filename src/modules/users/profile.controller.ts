@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthRequest } from '../../middlewares/auth.middleware';
+import { AuthRequest } from '@middlewares/auth.middleware';
 import userRepository from './user.repository';
 
 export default class ProfileController {

@@ -3,9 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './config/swagger';
-import authRoutes from "./routes/auth.routes"
-import profileRoutes from "./routes/profile.routes";
+import swaggerSpec from "./config/swagger"
+import authRoutes from "@routes/auth.routes"
+import profileRoutes from "@routes/profile.routes";
 const app = express();
 app.use(cors());
 app.use(helmet());
