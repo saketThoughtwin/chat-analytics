@@ -1,4 +1,5 @@
-import ChatMessage, { IChatMessage } from './chat.model';
+import { IChatMessage } from './chat.model';
+import messageRepository from './message.repository';
 import roomService from './room.service';
 import { redis } from '@config/redis';
 
@@ -19,7 +20,7 @@ class MessageService {
      * Send a message to a room
      */
     async sendMessage(data: MessageData): Promise<IChatMessage> {
-        const newMessage = await ChatMessage.create({
+        const newMessage = await messageRepository.create({
             sender: data.sender,
             receiver: data.receiver,
             roomId: data.roomId,
@@ -59,11 +60,12 @@ class MessageService {
         const skip = (page - 1) * limit;
 
         const [messages, total] = await Promise.all([
-            ChatMessage.find({ roomId, deleted: false })
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit),
-            ChatMessage.countDocuments({ roomId, deleted: false })
+            messageRepository.findByRoomId(roomId, {
+                skip,
+                limit,
+                sort: { createdAt: -1 }
+            }),
+            messageRepository.countByRoomId(roomId)
         ]);
 
         const hasMore = skip + messages.length < total;
@@ -79,38 +81,14 @@ class MessageService {
      * Mark messages as read
      */
     async markAsRead(messageIds: string[], userId: string): Promise<void> {
-        const now = new Date();
-
-        await ChatMessage.updateMany(
-            {
-                _id: { $in: messageIds },
-                receiver: userId,
-                read: false
-            },
-            {
-                read: true,
-                readAt: now
-            }
-        );
+        await messageRepository.markAsRead(messageIds, userId);
     }
 
     /**
      * Mark all messages in a room as read for a user
      */
     async markRoomAsRead(roomId: string, userId: string): Promise<void> {
-        const now = new Date();
-
-        await ChatMessage.updateMany(
-            {
-                roomId,
-                receiver: userId,
-                read: false
-            },
-            {
-                read: true,
-                readAt: now
-            }
-        );
+        await messageRepository.markRoomAsRead(roomId, userId);
 
         // Clear unread count in room
         await roomService.markRoomAsRead(roomId, userId);
@@ -120,39 +98,21 @@ class MessageService {
      * Get unread message count for a user
      */
     async getUnreadCount(userId: string): Promise<number> {
-        return ChatMessage.countDocuments({
-            receiver: userId,
-            read: false,
-            deleted: false
-        });
+        return messageRepository.countUnreadByReceiver(userId);
     }
 
     /**
      * Get unread messages for a specific room
      */
     async getRoomUnreadMessages(roomId: string, userId: string): Promise<IChatMessage[]> {
-        return ChatMessage.find({
-            roomId,
-            receiver: userId,
-            read: false,
-            deleted: false
-        }).sort({ createdAt: 1 });
+        return messageRepository.findUnreadByReceiver(userId);
     }
 
     /**
      * Soft delete a message
      */
     async deleteMessage(messageId: string, userId: string): Promise<boolean> {
-        const result = await ChatMessage.updateOne(
-            {
-                _id: messageId,
-                sender: userId
-            },
-            {
-                deleted: true
-            }
-        );
-
+        const result = await messageRepository.softDelete(messageId, userId);
         return result.modifiedCount > 0;
     }
 
@@ -160,7 +120,7 @@ class MessageService {
      * Mark message as delivered
      */
     async markAsDelivered(messageId: string): Promise<void> {
-        await ChatMessage.findByIdAndUpdate(messageId, {
+        await messageRepository.updateById(messageId, {
             deliveredAt: new Date()
         });
     }
@@ -174,10 +134,7 @@ class MessageService {
         if (cached) return parseInt(cached);
 
         // Fallback to database count
-        const count = await ChatMessage.countDocuments({
-            sender: userId,
-            deleted: false
-        });
+        const count = await messageRepository.countBySender(userId);
 
         // Cache the result
         await redis.set(`user:messages:${userId}`, count.toString());
