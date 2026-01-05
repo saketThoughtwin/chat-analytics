@@ -9,5 +9,8 @@ class UserRepository {
     async findById(id:string){
         return userModel.findById(id);
     }
-};
+    async count(){
+        return userModel.countDocuments();
+    }
+}
 export default new UserRepository();
