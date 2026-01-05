@@ -24,7 +24,9 @@
        "@middlewares/*": ["middlewares/*"],
       "@repositories/*": ["repositories/*"],
       "@controllers/*": ["controllers/*"],
-      "@services/*": ["services/*"]
+      "@services/*": ["services/*"],
+      "@realtime/*":["realtime/*"],
+      "@analytics/*":["analytics/*"]
     }
   },
   "include": ["src/**/*"],
