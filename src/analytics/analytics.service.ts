@@ -1,4 +1,4 @@
-import ChatMessage from '@modules/chat/chat.model';
+import messageRepository from '@modules/chat/message.repository';
 import userRepository from '@modules/users/user.repository';
 import { redis } from "@config/redis";
 
@@ -13,7 +13,7 @@ class AnalyticsService {
   }
 
   async totalMessages() {
-    return ChatMessage.countDocuments();
+    return messageRepository.countAll();
   }
 
   async messagesByUser(userId: string) {
@@ -22,7 +22,7 @@ class AnalyticsService {
     if (cached) return parseInt(cached);
 
     // Fallback to database
-    const count = await ChatMessage.countDocuments({ sender: userId, deleted: false });
+    const count = await messageRepository.countBySender(userId);
 
     // Cache the result
     await redis.set(`user:messages:${userId}`, count.toString(), 'EX', 3600); // 1 hour TTL
@@ -36,7 +36,7 @@ class AnalyticsService {
 
   async roomStats(roomId: string) {
     const [totalMessages, activeUsers] = await Promise.all([
-      ChatMessage.countDocuments({ roomId, deleted: false }),
+      messageRepository.countByRoomId(roomId),
       redis.scard(`chat:active:${roomId}`)
     ]);
 
@@ -50,7 +50,7 @@ class AnalyticsService {
   async userChatStats(userId: string) {
     const [messagesSent, totalUnread] = await Promise.all([
       this.messagesByUser(userId),
-      ChatMessage.countDocuments({ receiver: userId, read: false, deleted: false })
+      messageRepository.countUnreadByReceiver(userId)
     ]);
 
     return {

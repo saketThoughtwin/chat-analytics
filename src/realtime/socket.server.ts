@@ -1,10 +1,9 @@
 import { Server, Socket } from "socket.io";
 import http from "http";
 import { redis } from "@config/redis";
-import ChatMessage from "@modules/chat/chat.model";
+import messageRepository from "@modules/chat/message.repository";
 import { verifyToken } from "@utils/jwt";
 import messageService from "@modules/chat/message.service";
-
 export let io: Server;
 
 // Track user's active rooms for cleanup on disconnect
@@ -87,7 +86,7 @@ export const initSocketServer = (server: http.Server) => {
 
       try {
         // This is handled via REST API now, but keeping for backward compatibility
-        const newMsg = await ChatMessage.create({
+        const newMsg = await messageRepository.create({
           sender: userId,
           roomId,
           message,

@@ -1,4 +1,5 @@
-import Room, { IRoom } from './room.model';
+import { IRoom } from './room.model';
+import roomRepository from './room.repository';
 import { RoomIdGenerator } from '@utils/roomIdGenerator';
 import { redis } from '@config/redis';
 
@@ -10,10 +11,10 @@ class RoomService {
     async getOrCreateDirectRoom(userId1: string, userId2: string): Promise<IRoom> {
         const roomId = RoomIdGenerator.generateDirectRoomId(userId1, userId2);
 
-        let room = await Room.findById(roomId);
+        let room = await roomRepository.findById(roomId);
 
         if (!room) {
-            room = await Room.create({
+            room = await roomRepository.create({
                 _id: roomId,
                 type: 'direct',
                 participants: [userId1, userId2],
@@ -28,7 +29,7 @@ class RoomService {
      * Get room by ID
      */
     async getRoomById(roomId: string): Promise<IRoom | null> {
-        return Room.findById(roomId);
+        return roomRepository.findById(roomId);
     }
 
     /**
@@ -36,37 +37,21 @@ class RoomService {
      */
     async getUserRooms(userId: string, page: number = 1, limit: number = 20): Promise<IRoom[]> {
         const skip = (page - 1) * limit;
-
-        return Room.find({ participants: userId })
-            .sort({ updatedAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        return roomRepository.findByParticipant(userId, { skip, limit });
     }
 
     /**
      * Update room's last message metadata
      */
     async updateRoomLastMessage(roomId: string, message: string, senderId: string): Promise<void> {
-        await Room.findByIdAndUpdate(roomId, {
-            lastMessage: {
-                text: message,
-                senderId,
-                timestamp: new Date()
-            },
-            updatedAt: new Date()
-        });
+        await roomRepository.updateLastMessage(roomId, message, senderId);
     }
 
     /**
      * Increment unread count for a user in a room
      */
     async incrementUnreadCount(roomId: string, userId: string): Promise<void> {
-        const room = await Room.findById(roomId);
-        if (!room) return;
-
-        const currentCount = room.unreadCounts.get(userId) || 0;
-        room.unreadCounts.set(userId, currentCount + 1);
-        await room.save();
+        await roomRepository.incrementUnreadCount(roomId, userId);
 
         // Also cache in Redis for quick access
         await redis.incr(`unread:${userId}:${roomId}`);
@@ -76,11 +61,7 @@ class RoomService {
      * Mark room as read for a user (clear unread count)
      */
     async markRoomAsRead(roomId: string, userId: string): Promise<void> {
-        const room = await Room.findById(roomId);
-        if (!room) return;
-
-        room.unreadCounts.set(userId, 0);
-        await room.save();
+        await roomRepository.clearUnreadCount(roomId, userId);
 
         // Clear Redis cache
         await redis.del(`unread:${userId}:${roomId}`);
@@ -90,7 +71,7 @@ class RoomService {
      * Get total unread count for a user across all rooms
      */
     async getTotalUnreadCount(userId: string): Promise<number> {
-        const rooms = await Room.find({ participants: userId });
+        const rooms = await roomRepository.findByParticipant(userId);
         let total = 0;
 
         for (const room of rooms) {
@@ -109,8 +90,7 @@ class RoomService {
         if (cached) return parseInt(cached);
 
         // Fallback to database
-        const room = await Room.findById(roomId);
-        return room?.unreadCounts.get(userId) || 0;
+        return roomRepository.getUnreadCount(roomId, userId);
     }
 
     /**
@@ -119,7 +99,7 @@ class RoomService {
     async createGroupRoom(participants: string[]): Promise<IRoom> {
         const roomId = RoomIdGenerator.generateGroupRoomId(participants);
 
-        const room = await Room.create({
+        const room = await roomRepository.create({
             _id: roomId,
             type: 'group',
             participants,
