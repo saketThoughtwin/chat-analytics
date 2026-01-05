@@ -234,6 +234,39 @@ socket.on('receive_message', (message) => {
 - **Language**: TypeScript
 - **Development**: Nodemon, ts-node
 
+## 🚀 Deployment
+
+### Building for Production
+
+The project uses TypeScript path aliases (`@routes/*`, `@modules/*`, etc.) which need to be resolved for production:
+
+```bash
+npm run build
+```
+
+This runs `tsc && tsc-alias` which:
+1. Compiles TypeScript to JavaScript
+2. Resolves all path aliases to relative paths
+
+### Deploying to Render
+
+1. **Set Environment Variables**:
+   - `MONGO_URI` - MongoDB connection string
+   - `REDIS_HOST` - Redis host
+   - `REDIS_PORT` - Redis port (default: 6379)
+   - `JWT_SECRET` - Secret key for JWT
+   - `PORT` - Server port (Render uses 10000)
+
+2. **Build Command**: `npm install && npm run build`
+
+3. **Start Command**: `npm start`
+
+4. **Required Services**:
+   - MongoDB (use MongoDB Atlas)
+   - Redis (use Render Redis or Upstash)
+
+For detailed deployment instructions, see the deployment guide in the project documentation.
+
 ## 📊 Key Features Explained
 
 ### Deterministic Room Creation
