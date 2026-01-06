@@ -1,50 +1,42 @@
 import Redis from "ioredis";
 
-// Redis configuration with environment variables
-const redisConfig = {
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
+// Use REDIS_URL from Railway for production
+const redisConfig: any = {
+  // If REDIS_URL exists, use it directly
+  ...(process.env.REDIS_URL ? { 
+    url: process.env.REDIS_URL 
+  } : {
+    // fallback to local Redis
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: parseInt(process.env.REDIS_PORT || "6379")
+  }),
   maxRetriesPerRequest: 3,
   retryStrategy(times: number) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
+    return Math.min(times * 50, 2000);
   },
-  // Add connection timeout
   connectTimeout: 10000,
-  // Disable lazyConnect to fail fast if Redis is unavailable
   lazyConnect: false,
 };
 
 export const redis = new Redis(redisConfig);
 
-// Handle Redis connection errors
+// Event listeners
+redis.on("connect", () => console.log("✅ Redis connected"));
+redis.on("ready", () => console.log("✅ Redis ready"));
 redis.on("error", (err) => {
-  console.error("Redis connection error:", err.message);
+  console.error("❌ Redis connection error:", err.message);
   if (process.env.NODE_ENV === "production") {
     console.error("CRITICAL: Redis is required in production!");
-  } else {
-    console.warn("Redis is not available. Some features may not work properly.");
   }
 });
+redis.on("close", () => console.warn("⚠️ Redis connection closed"));
 
-redis.on("connect", () => {
-  console.log("✓ Redis connected successfully");
-});
-
-redis.on("ready", () => {
-  console.log("✓ Redis is ready to accept commands");
-});
-
-redis.on("close", () => {
-  console.warn("Redis connection closed");
-});
-
-// Helper function to check if Redis is available
+// Helper functions
 export const isRedisAvailable = async (): Promise<boolean> => {
   try {
     await redis.ping();
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
