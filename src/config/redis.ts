@@ -1,15 +1,8 @@
 import Redis from "ioredis";
 
-// Use REDIS_URL from Railway for production
-const redisConfig: any = {
-  // If REDIS_URL exists, use it directly
-  ...(process.env.REDIS_URL ? { 
-    url: process.env.REDIS_URL 
-  } : {
-    // fallback to local Redis
-    host: process.env.REDIS_HOST || "127.0.0.1",
-    port: parseInt(process.env.REDIS_PORT || "6379")
-  }),
+const redisUrl = process.env.REDIS_URL;
+
+const commonConfig = {
   maxRetriesPerRequest: 3,
   retryStrategy(times: number) {
     return Math.min(times * 50, 2000);
@@ -18,7 +11,13 @@ const redisConfig: any = {
   lazyConnect: false,
 };
 
-export const redis = new Redis(redisConfig);
+export const redis = redisUrl
+  ? new Redis(redisUrl, commonConfig)
+  : new Redis({
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: parseInt(process.env.REDIS_PORT || "6379"),
+    ...commonConfig,
+  });
 
 // Event listeners
 redis.on("connect", () => console.log("✅ Redis connected"));
