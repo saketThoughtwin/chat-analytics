@@ -9,7 +9,13 @@ import profileRoutes from "@routes/profile.routes";
 import chatRoutes from "@routes/chat.routes";
 import analyticsRoutes from "@routes/analytics.routes";
 const app = express();
-app.use(cors());
+app.set("trust proxy", true);
+app.use(cors({
+  origin: true,              // auto allow Railway domain
+  credentials: true,
+  methods: ["GET","POST","PUT","DELETE","PATCH","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"]
+}));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
