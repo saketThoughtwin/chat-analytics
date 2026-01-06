@@ -1,17 +1,15 @@
 import Redis from "ioredis";
 
-const redis = new Redis({
-  host: process.env.RAILWAY_TCP_PROXY_DOMAIN,        // Railway Redis host
-  port: parseInt(process.env.RAILWAY_TCP_PROXY_PORT || "6379"), // Railway Redis port
-  password: process.env.REDIS_PASSWORD,             // Password
+// Use the REDIS_URL variable which should point to the internal domain
+const redis = new Redis(process.env.REDIS_URL as string, {
   maxRetriesPerRequest: 3,
+  family: 0, // 👈 CRITICAL: Allows both IPv4 and IPv6 resolution
   retryStrategy(times: number) {
     return Math.min(times * 50, 2000);
   },
-  connectTimeout: 10000,
+  connectTimeout: 15000, // 👈 Increased slightly for production handshakes
   lazyConnect: false,
 });
-
 // Event listeners
 redis.on("connect", () => console.log("✅ Redis connected"));
 redis.on("ready", () => console.log("✅ Redis ready"));
