@@ -12,7 +12,6 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-
     "types": ["node"],
 
     "baseUrl": "src",
@@ -29,6 +28,6 @@
       "@analytics/*":["analytics/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }
