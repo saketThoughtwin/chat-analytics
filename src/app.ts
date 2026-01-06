@@ -21,6 +21,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api',authRoutes);
+app.get("/health", (_, res) => res.send("OK"));
 app.use('/api', profileRoutes);
 app.use('/api',chatRoutes);
 app.use('/api', analyticsRoutes);
