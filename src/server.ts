@@ -5,7 +5,7 @@ import app from "./app";
 import "@config/redis";
 import { initSocketServer } from "@realtime/socket.server";
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT || 5000);
 
 mongoose
   .connect(process.env.MONGO_URI!)
@@ -14,4 +14,4 @@ mongoose
 const server = http.createServer(app);
 initSocketServer(server);
 
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+server.listen(PORT, "0.0.0.0", () => console.log(`Server running on ${PORT}`));
