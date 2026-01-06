@@ -1,24 +1,16 @@
 import Redis from "ioredis";
 
-const redisUrl = process.env.REDIS_URL;
-
-const commonConfig = {
+const redis = new Redis({
+  host: process.env.RAILWAY_TCP_PROXY_DOMAIN,        // Railway Redis host
+  port: parseInt(process.env.RAILWAY_TCP_PROXY_PORT || "6379"), // Railway Redis port
+  password: process.env.REDIS_PASSWORD,             // Password
   maxRetriesPerRequest: 3,
   retryStrategy(times: number) {
     return Math.min(times * 50, 2000);
   },
   connectTimeout: 10000,
   lazyConnect: false,
-  tls: {}, // ⚡ Important for rediss:// connections
-};
-
-export const redis = redisUrl
-  ? new Redis(redisUrl, commonConfig)
-  : new Redis({
-      host: process.env.REDIS_HOST || "127.0.0.1",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      ...commonConfig,
-    });
+});
 
 // Event listeners
 redis.on("connect", () => console.log("✅ Redis connected"));
@@ -58,3 +50,5 @@ export const getSession = async (userId: string) => {
     return null;
   }
 };
+
+export { redis };
