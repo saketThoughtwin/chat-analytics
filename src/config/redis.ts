@@ -9,15 +9,16 @@ const commonConfig = {
   },
   connectTimeout: 10000,
   lazyConnect: false,
+  tls: {}, // ⚡ Important for rediss:// connections
 };
 
 export const redis = redisUrl
   ? new Redis(redisUrl, commonConfig)
   : new Redis({
-    host: process.env.REDIS_HOST || "127.0.0.1",
-    port: parseInt(process.env.REDIS_PORT || "6379"),
-    ...commonConfig,
-  });
+      host: process.env.REDIS_HOST || "127.0.0.1",
+      port: parseInt(process.env.REDIS_PORT || "6379"),
+      ...commonConfig,
+    });
 
 // Event listeners
 redis.on("connect", () => console.log("✅ Redis connected"));
