@@ -34,6 +34,6 @@ const options = {
       },
     },
   },
-  apis: ["./src/**/*.ts"],
+  apis: ["./src/docs/swagger/*.yaml"],
 };
 export default swaggerJSDoc(options);
