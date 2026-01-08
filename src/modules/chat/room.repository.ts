@@ -6,31 +6,28 @@ class RoomRepository {
     }
 
     async findById(id: string) {
-        return Room.findById(id);
+        return Room.findById(id).lean();
     }
 
-    async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
-        const query = Room.find({ participants: userId }).sort({ updatedAt: -1 });
+  async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
+    const query = Room.find({ participants: userId })
+      .sort({ updatedAt: -1 })
+      .skip(options?.skip || 0)
+      .limit(options?.limit || 20)
+      .lean();                         // ✅ lean
 
-        if (options?.skip) {
-            query.skip(options.skip);
-        }
-        if (options?.limit) {
-            query.limit(options.limit);
-        }
-
-        return query.exec();
-    }
+    return query.exec();
+  }
 
     async findByParticipants(participants: string[]) {
-        return Room.find({ participants: { $all: participants } });
+        return Room.find({ participants: { $all: participants } }).lean();
     }
 
     async findDirectRoom(userId1: string, userId2: string) {
         return Room.findOne({
             type: 'direct',
             participants: { $all: [userId1, userId2] }
-        });
+        }).lean();
     }
 
     async updateById(id: string, update: Partial<IRoom>) {
@@ -70,7 +67,7 @@ class RoomRepository {
     }
 
     async getUnreadCount(roomId: string, userId: string) {
-        const room = await Room.findById(roomId);
+        const room = await Room.findById(roomId).lean();
         return room?.unreadCounts.get(userId) || 0;
     }
 

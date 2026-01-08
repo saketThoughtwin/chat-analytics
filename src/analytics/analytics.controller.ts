@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "@middlewares/auth.middleware";
 import analyticsService from "./analytics.service";
+
 export default class AnalyticsController {
     static async dashboard(req: AuthRequest, res: Response) {
         const data = {

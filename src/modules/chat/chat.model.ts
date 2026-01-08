@@ -26,9 +26,20 @@ const ChatSchema = new Schema<IChatMessage>(
   { timestamps: true }
 );
 
-// Compound indexes for efficient pagination and queries
-ChatSchema.index({ roomId: 1, createdAt: -1 }); // For paginated message retrieval
-ChatSchema.index({ sender: 1, createdAt: -1 }); // For user message analytics
-ChatSchema.index({ roomId: 1, read: 1, receiver: 1 }); // For unread message queries
+// FAST room message pagination
+ChatSchema.index({ roomId: 1, deleted: 1, createdAt: -1 });
+
+// FAST unread counters (Redis fallback)
+ChatSchema.index({ receiver: 1, read: 1, deleted: 1 });
+
+// FAST mark room as read
+ChatSchema.index({ roomId: 1, receiver: 1, read: 1 });
+
+// FAST user analytics
+ChatSchema.index({ sender: 1, deleted: 1 });
+
+// FAST cleanup / archive jobs
+ChatSchema.index({ deleted: 1, createdAt: -1 });
+
 
 export default mongoose.model<IChatMessage>('ChatMessage', ChatSchema);
