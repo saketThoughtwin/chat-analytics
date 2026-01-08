@@ -6,40 +6,28 @@ class MessageRepository {
     }
 
     async findById(id: string) {
-        return ChatMessage.findById(id);
+        return ChatMessage.findById(id).lean();
     }
-
-    async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
-        const query = ChatMessage.find({ roomId, deleted: false });
-
-        if (options?.sort) {
-            query.sort(options.sort);
-        }
-        if (options?.skip) {
-            query.skip(options.skip);
-        }
-        if (options?.limit) {
-            query.limit(options.limit);
-        }
-
-        return query.exec();
-    }
+  
+  async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
+    return ChatMessage.find({ roomId, deleted: false })
+      .sort(options?.sort || { createdAt: -1 })
+      .skip(options?.skip || 0)
+      .limit(options?.limit || 50)
+      .lean()               
+      .exec();
+  }
 
     async findBySender(senderId: string, options?: { skip?: number; limit?: number }) {
-        const query = ChatMessage.find({ sender: senderId, deleted: false });
-
-        if (options?.skip) {
-            query.skip(options.skip);
-        }
-        if (options?.limit) {
-            query.limit(options.limit);
-        }
-
-        return query.exec();
-    }
+    return ChatMessage.find({ sender: senderId, deleted: false })
+      .skip(options?.skip || 0)
+      .limit(options?.limit || 50)
+      .lean()                // ✅
+      .exec();
+  }
 
     async findUnreadByReceiver(receiverId: string) {
-        return ChatMessage.find({ receiver: receiverId, read: false, deleted: false });
+        return ChatMessage.find({ receiver: receiverId, read: false, deleted: false }).lean();
     }
 
     async countByRoomId(roomId: string) {

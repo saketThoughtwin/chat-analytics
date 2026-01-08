@@ -4,23 +4,25 @@ import { Request, Response } from "express";
 import userService from "./user.service";
 import { signToken } from "@utils/jwt";
 import { setSession, redis } from "@config/redis";
-
+import { ApiError } from "@utils/ApiError";
 class UserController {
   static async register(req: Request, res: Response) {
-    try {
+    
       const { name, email, password } = req.body;
+        if(!name || !email || !password){
+         throw new ApiError(400, "All fields are required");
+      }
       const user = await userService.register(name, email, password);
+    
       res.status(201).json({ success: true, data: user, messgae: "user registerd successfully" });
-    }
-    catch (err: any) {
-      res.status(400).json({ success: false, message: err.message });
-    }
   }
   static async login(req: Request, res: Response) {
     const { email, password } = req.body;
 
     const user = await userService.login(email, password);
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!user) {
+      throw new ApiError(401, "Invalid email or password");
+    }
 
     const token = signToken(String(user._id));
 

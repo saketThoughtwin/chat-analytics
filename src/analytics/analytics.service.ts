@@ -5,59 +5,77 @@ import { redis } from "@config/redis";
 class AnalyticsService {
 
   async totalUsers() {
-    return userRepository.count();
+    try {
+      return await userRepository.count();
+    } catch {
+      return 0;
+    }
   }
 
   async onlineUsers() {
-    return redis.scard('online_users');
+    try {
+      return await redis.scard('online_users');
+    } catch {
+      return 0;
+    }
   }
 
   async totalMessages() {
-    return messageRepository.countAll();
+    try {
+      return await messageRepository.countAll();
+    } catch {
+      return 0;
+    }
   }
 
   async messagesByUser(userId: string) {
-    // Try Redis cache first
-    const cached = await redis.get(`user:messages:${userId}`);
-    if (cached) return parseInt(cached);
+    try {
+      const cacheKey = `user:messages:${userId}`;
 
-    // Fallback to database
-    const count = await messageRepository.countBySender(userId);
+      const cached = await redis.get(cacheKey);
+      if (cached) return Number(cached);
 
-    // Cache the result
-    await redis.set(`user:messages:${userId}`, count.toString(), 'EX', 3600); // 1 hour TTL
+      const count = await messageRepository.countBySender(userId);
 
-    return count;
+      await redis.setex(cacheKey, 300, count.toString()); // 5 min TTL
+      return count;
+    } catch {
+      return messageRepository.countBySender(userId);
+    }
   }
 
   async activeUsersPerChat(roomId: string) {
-    return redis.scard(`chat:active:${roomId}`);
+    try {
+      return await redis.scard(`chat:active:${roomId}`);
+    } catch {
+      return 0;
+    }
   }
 
   async roomStats(roomId: string) {
-    const [totalMessages, activeUsers] = await Promise.all([
-      messageRepository.countByRoomId(roomId),
-      redis.scard(`chat:active:${roomId}`)
-    ]);
+    try {
+      const [totalMessages, activeUsers] = await Promise.all([
+        messageRepository.countByRoomId(roomId),
+        redis.scard(`chat:active:${roomId}`)
+      ]);
 
-    return {
-      roomId,
-      totalMessages,
-      activeUsers
-    };
+      return { roomId, totalMessages, activeUsers };
+    } catch {
+      return { roomId, totalMessages: 0, activeUsers: 0 };
+    }
   }
 
   async userChatStats(userId: string) {
-    const [messagesSent, totalUnread] = await Promise.all([
-      this.messagesByUser(userId),
-      messageRepository.countUnreadByReceiver(userId)
-    ]);
+    try {
+      const [messagesSent, totalUnread] = await Promise.all([
+        this.messagesByUser(userId),
+        messageRepository.countUnreadByReceiver(userId)
+      ]);
 
-    return {
-      userId,
-      messagesSent,
-      unreadMessages: totalUnread
-    };
+      return { userId, messagesSent, unreadMessages: totalUnread };
+    } catch {
+      return { userId, messagesSent: 0, unreadMessages: 0 };
+    }
   }
 }
 

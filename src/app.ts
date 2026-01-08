@@ -8,6 +8,7 @@ import authRoutes from "@routes/auth.routes"
 import profileRoutes from "@routes/profile.routes";
 import chatRoutes from "@routes/chat.routes";
 import analyticsRoutes from "@routes/analytics.routes";
+import { globalErrorHandler } from '@middlewares/error.middleware';
 const app = express();
 app.set("trust proxy", true);
 app.use(cors({
@@ -25,6 +26,8 @@ app.get("/health", (_, res) => res.send("OK"));
 app.use('/api', profileRoutes);
 app.use('/api',chatRoutes);
 app.use('/api', analyticsRoutes);
+app.use(globalErrorHandler);
 app.get('/', (_, res) => res.send('Chat & Analytics API Running'));
+
 
 export default app;

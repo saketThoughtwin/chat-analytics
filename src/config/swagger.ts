@@ -21,7 +21,7 @@ const options = {
           properties: {
             name: { type: "string", example: "sample" },
             email: { type: "string", example: "sample@gmail.com" },
-            password: { type: "string", example: "Test@123" },
+            password: { type: "string", example: "Test123" },
           },
         },
       },
