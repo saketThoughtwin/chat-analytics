@@ -3,7 +3,7 @@
 import { Router } from "express";
 import AnalyticsController from "@analytics/analytics.controller";
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { asyncHandler } from "@utils/asyncHandler";
+import { asyncHandler } from "@middlewares/asyncHandlerMiddleware";
 const router = Router();
 
 router.get('/analytics/dashboard', authMiddleware, asyncHandler(AnalyticsController.dashboard));

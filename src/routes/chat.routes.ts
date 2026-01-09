@@ -3,7 +3,7 @@ import { Router } from "express";
 import ChatController from "@modules/chat/chat.controller";
 import { authMiddleware } from "@middlewares/auth.middleware";
 import { rateLimitMiddleware } from "@middlewares/rateLimit.middleware";
-import { asyncHandler } from "@utils/asyncHandler";
+import { asyncHandler } from "@middlewares/asyncHandlerMiddleware";
 const router = Router();
 
 // Room management

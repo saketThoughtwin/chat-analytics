@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { asyncHandler } from "@utils/asyncHandler";
+import { asyncHandler } from "@middlewares/asyncHandlerMiddleware";
 import UserController from "@modules/users/user.controller";
 const router = Router();
 router.post('/auth/register',asyncHandler(UserController.register));
