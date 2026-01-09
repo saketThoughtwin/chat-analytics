@@ -28,6 +28,7 @@ export const initSocketServer = (server: http.Server) => {
     const userId = socket.data.userId;
 
     if (userId) {
+      await redis.set(`last_seen:${userId}`, "online");
       await redis.sadd("online_users", userId);
       socket.join(userId);
 
@@ -113,14 +114,14 @@ export const initSocketServer = (server: http.Server) => {
     });
 
     // Handle message delivery acknowledgment
-    socket.on("message_delivered", async ({ messageId }: { messageId: string }) => {
-      try {
-        await messageService.markAsDelivered(messageId);
-        io.emit("message_delivered", { messageId });
-      } catch (error) {
-        console.error("Error marking message as delivered:", error);
-      }
-    });
+    // socket.on("message_delivered", async ({ messageId }: { messageId: string }) => {
+    //   try {
+    //     await messageService.markAsDelivered(messageId);
+    //     io.emit("message_delivered", { messageId });
+    //   } catch (error) {
+    //     console.error("Error marking message as delivered:", error);
+    //   }
+    // });
 
     // Handle read receipts
     socket.on("messages_read", async ({ roomId, messageIds }: { roomId: string; messageIds: string[] }) => {
@@ -134,6 +135,7 @@ export const initSocketServer = (server: http.Server) => {
 
     socket.on("disconnect", async () => {
       if (userId) {
+        await redis.set(`last_seen:${userId}`, Date.now().toString());
         await redis.srem("online_users", userId);
 
         // Remove from all active rooms
