@@ -9,22 +9,23 @@ import profileRoutes from "@routes/profile.routes";
 import chatRoutes from "@routes/chat.routes";
 import analyticsRoutes from "@routes/analytics.routes";
 import { globalErrorHandler } from '@middlewares/error.middleware';
+import { RoutesConstants } from './constants/route.constants';
 const app = express();
 app.set("trust proxy", true);
 app.use(cors({
   origin: true,              // auto allow Railway domain
   credentials: true,
-  methods: ["GET","POST","PUT","DELETE","PATCH","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"]
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use('/api',authRoutes);
-app.get("/health", (_, res) => res.send("OK"));
+app.use('/api', authRoutes);
+app.get(RoutesConstants.HEALTH, (_, res) => res.send("OK"));
 app.use('/api', profileRoutes);
-app.use('/api',chatRoutes);
+app.use('/api', chatRoutes);
 app.use('/api', analyticsRoutes);
 app.use(globalErrorHandler);
 app.get('/', (_, res) => res.send('Chat & Analytics API Running'));
