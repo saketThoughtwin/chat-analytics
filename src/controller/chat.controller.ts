@@ -1,8 +1,8 @@
 import { Response } from "express";
 import { AuthRequest } from "@middlewares/auth.middleware";
 import { io } from "@realtime/socket.server";
-import roomService from "./room.service";
-import messageService from "./message.service";
+import roomService from "@modules/chat/room.service";
+import messageService from "@modules/chat/message.service";
 import { ApiError } from "@utils/ApiError";
 
 export default class ChatController {

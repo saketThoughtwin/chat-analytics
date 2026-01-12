@@ -1,7 +1,7 @@
 
 
 import { Request, Response } from "express";
-import userService from "./user.service";
+import userService from "@modules/users/user.service";
 import { signToken } from "@utils/jwt";
 import { setSession, redis } from "@config/redis";
 import { ApiError } from "@utils/ApiError";

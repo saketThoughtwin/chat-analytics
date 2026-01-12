@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '@middlewares/auth.middleware';
-import userRepository from './user.repository';
+import userRepository from '@modules/users/user.repository';
 
 export default class ProfileController {
   static async me(req: AuthRequest, res: Response) {
