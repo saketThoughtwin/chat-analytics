@@ -40,7 +40,7 @@ class RoomRepository {
             roomId,
             {
                 lastMessage: {
-                    text: message,
+                    message,
                     senderId,
                     timestamp: new Date()
                 },
