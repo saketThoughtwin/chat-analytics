@@ -35,7 +35,8 @@ class MessageService {
         // Increment unread count for other participants
         const room = await roomService.getRoomById(data.roomId);
         if (room) {
-            for (const participantId of room.participants) {
+            for (const participant of room.participants) {
+                const participantId = (participant as any)._id ? (participant as any)._id.toString() : participant.toString();
                 if (participantId !== data.sender) {
                     await roomService.incrementUnreadCount(data.roomId, participantId);
                 }
