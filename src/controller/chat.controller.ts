@@ -63,15 +63,16 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p) === userId)) {
+    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
     // Determine receiver for direct chats
-    const receiver =
+    const receiverObj =
       room.type === "direct"
-        ? room.participants.find((p: any) => (p._id || p) !== userId)
+        ? room.participants.find((p: any) => (p._id || p).toString() !== userId)
         : undefined;
+    const receiver = receiverObj ? ((receiverObj as any)._id || receiverObj).toString() : undefined;
 
     const newMsg = await messageService.sendMessage({
       sender: userId!,
@@ -86,10 +87,7 @@ export default class ChatController {
     // Also emit to receiver's personal room if it's a direct chat
     // This ensures the recipient sees the new room/message instantly
     if (receiver) {
-      const receiverId = typeof receiver === 'string' ? receiver : ((receiver as any)._id || (receiver as any).id);
-      if (receiverId) {
-        io.to(receiverId.toString()).emit("receive_message", newMsg);
-      }
+      io.to(receiver).emit("receive_message", newMsg);
     }
 
     res.status(201).json(newMsg);
@@ -110,7 +108,7 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p) === userId)) {
+    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
