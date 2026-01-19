@@ -39,6 +39,10 @@ export const initSocketServer = (server: http.Server) => {
 
       // Broadcast user online status
       io.emit("user_online", { userId });
+
+      // Send list of currently online users to the new connection
+      const onlineUsers = await redis.smembers("online_users");
+      socket.emit("online_users_list", { userIds: onlineUsers });
     }
 
     socket.on("join_room", async (roomId: string) => {

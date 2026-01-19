@@ -6,28 +6,29 @@ class RoomRepository {
     }
 
     async findById(id: string) {
-        return Room.findById(id).lean();
+        return Room.findById(id).populate('participants', '-password').lean();
     }
 
-  async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
-    const query = Room.find({ participants: userId })
-      .sort({ updatedAt: -1 })
-      .skip(options?.skip || 0)
-      .limit(options?.limit || 20)
-      .lean();                         // ✅ lean
+    async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
+        const query = Room.find({ participants: userId })
+            .populate('participants', '-password')
+            .sort({ updatedAt: -1 })
+            .skip(options?.skip || 0)
+            .limit(options?.limit || 20)
+            .lean();                         // ✅ lean
 
-    return query.exec();
-  }
+        return query.exec();
+    }
 
     async findByParticipants(participants: string[]) {
-        return Room.find({ participants: { $all: participants } }).lean();
+        return Room.find({ participants: { $all: participants } }).populate('participants', '-password').lean();
     }
 
     async findDirectRoom(userId1: string, userId2: string) {
         return Room.findOne({
             type: 'direct',
             participants: { $all: [userId1, userId2] }
-        }).lean();
+        }).populate('participants', '-password').lean();
     }
 
     async updateById(id: string, update: Partial<IRoom>) {
