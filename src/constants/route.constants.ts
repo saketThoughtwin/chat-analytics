@@ -12,6 +12,7 @@ export const RoutesConstants = {
         DEFAULT: '/users',
         ALL: '/',
         DETAIL: '/:id',
+        SEARCH: '/search',
     },
     HEALTH: '/health',
     NOT_FOUND: '*',
