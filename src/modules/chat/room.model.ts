@@ -25,6 +25,7 @@ const RoomSchema = new Schema<IRoom>(
         },
         participants: {
             type: [String],
+            ref: 'User',
             required: true,
             index: true
         },
