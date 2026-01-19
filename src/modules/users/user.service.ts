@@ -25,5 +25,18 @@ class UserService {
 
     return user;
   }
+  async searchUsers(query: string, currentUserId: string) {
+    return userRepository.findAll({
+      $and: [
+        {
+          $or: [
+            { name: { $regex: query, $options: "i" } },
+            { email: { $regex: query, $options: "i" } },
+          ],
+        },
+        { _id: { $ne: currentUserId } },
+      ],
+    });
+  }
 }
 export default new UserService();

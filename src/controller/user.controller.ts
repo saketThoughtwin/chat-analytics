@@ -7,14 +7,14 @@ import { setSession, redis } from "@config/redis";
 import { ApiError } from "@utils/ApiError";
 class UserController {
   static async register(req: Request, res: Response) {
-    
-      const { name, email, password } = req.body;
-        if(!name || !email || !password){
-         throw new ApiError(400, "All fields are required");
-      }
-      const user = await userService.register(name, email, password);
-    
-      res.status(201).json({ success: true, data: user, messgae: "user registerd successfully" });
+
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      throw new ApiError(400, "All fields are required");
+    }
+    const user = await userService.register(name, email, password);
+
+    res.status(201).json({ success: true, data: user, messgae: "user registerd successfully" });
   }
   static async login(req: Request, res: Response) {
     const { email, password } = req.body;
@@ -40,6 +40,11 @@ class UserController {
     });
   }
 
-
+  static async searchUsers(req: Request, res: Response) {
+    const { q } = req.query;
+    const { userId } = req as any; // Assuming authMiddleware attaches userId
+    const users = await userService.searchUsers(String(q || ""), userId);
+    res.json(users);
+  }
 }
 export default UserController;
