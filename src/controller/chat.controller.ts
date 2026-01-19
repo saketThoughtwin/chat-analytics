@@ -83,6 +83,15 @@ export default class ChatController {
     // Emit to room via socket
     io.to(roomId).emit("receive_message", newMsg);
 
+    // Also emit to receiver's personal room if it's a direct chat
+    // This ensures the recipient sees the new room/message instantly
+    if (receiver) {
+      const receiverId = typeof receiver === 'string' ? receiver : ((receiver as any)._id || (receiver as any).id);
+      if (receiverId) {
+        io.to(receiverId.toString()).emit("receive_message", newMsg);
+      }
+    }
+
     res.status(201).json(newMsg);
   }
 

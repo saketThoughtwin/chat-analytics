@@ -5,7 +5,7 @@ export interface IRoom {
     type: 'direct' | 'group';
     participants: string[]; // Array of user IDs
     lastMessage?: {
-        text: string;
+        message: string;
         senderId: string;
         timestamp: Date;
     };
@@ -30,7 +30,7 @@ const RoomSchema = new Schema<IRoom>(
             index: true
         },
         lastMessage: {
-            text: String,
+            message: String,
             senderId: String,
             timestamp: Date
         },
