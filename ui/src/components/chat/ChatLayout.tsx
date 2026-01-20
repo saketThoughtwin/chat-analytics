@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Box, Grid, Paper } from '@mui/material';
+import { Box, Grid, Paper, CircularProgress } from '@mui/material';
 import RoomList from './RoomList';
 import MessageWindow from './MessageWindow';
 import { useChatStore } from '../../store/chatStore';
@@ -11,11 +11,12 @@ import { useRouter } from 'next/navigation';
 
 export default function ChatLayout() {
     const initSocketEvents = useChatStore((state) => state.initSocketEvents);
-    const token = useAuthStore((state) => state.token);
-    const fetchMe = useAuthStore((state) => state.fetchMe);
+    const { token, fetchMe, _hasHydrated } = useAuthStore();
     const router = useRouter();
 
     useEffect(() => {
+        if (!_hasHydrated) return;
+
         if (!token) {
             router.push('/login');
             return;
@@ -28,7 +29,15 @@ export default function ChatLayout() {
         return () => {
             disconnectSocket();
         };
-    }, [token, initSocketEvents, router, fetchMe]);
+    }, [token, initSocketEvents, router, fetchMe, _hasHydrated]);
+
+    if (!_hasHydrated) {
+        return (
+            <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ height: '100vh', p: 2, bgcolor: '#f0f2f5' }}>
