@@ -1,5 +1,12 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
-import { Box, List, ListItem, ListItemAvatar, Avatar, ListItemText, Typography, Divider, Badge, ListItemButton, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
+import {
+    Box, List, ListItem, ListItemAvatar, Avatar, ListItemText, Typography, Divider,
+    Badge, ListItemButton, IconButton, Tooltip, Menu, MenuItem,
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button,
+    Snackbar, Alert
+} from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -16,6 +23,13 @@ export default function RoomList() {
     const router = useRouter();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState<{ [key: string]: HTMLElement | null }>({});
+
+    // Deletion Dialog State
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
+
+    // Success Snackbar State
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
 
     useEffect(() => {
         fetchRooms();
@@ -39,11 +53,24 @@ export default function RoomList() {
         setMenuAnchor({ ...menuAnchor, [roomId]: null });
     };
 
-    const handleDeleteChat = async (roomId: string) => {
-        if (window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
-            await deleteRoom(roomId);
-        }
+    const handleDeleteClick = (roomId: string) => {
+        setRoomToDelete(roomId);
+        setDeleteDialogOpen(true);
         handleMenuClose(roomId);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (roomToDelete) {
+            await deleteRoom(roomToDelete);
+            setSnackbarOpen(true);
+        }
+        setDeleteDialogOpen(false);
+        setRoomToDelete(null);
+    };
+
+    const handleDeleteCancel = () => {
+        setDeleteDialogOpen(false);
+        setRoomToDelete(null);
     };
 
     return (
@@ -97,7 +124,7 @@ export default function RoomList() {
                                         onClose={() => handleMenuClose(room._id)}
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <MenuItem onClick={() => handleDeleteChat(room._id)} sx={{ color: 'error.main' }}>
+                                        <MenuItem onClick={() => handleDeleteClick(room._id)} sx={{ color: 'error.main' }}>
                                             Delete Chat
                                         </MenuItem>
                                     </Menu>
@@ -144,6 +171,43 @@ export default function RoomList() {
                     );
                 })}
             </List>
+
+            {/* Deletion Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={handleDeleteCancel}
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+            >
+                <DialogTitle id="delete-dialog-title">
+                    {"Delete Chat?"}
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-dialog-description">
+                        Are you sure you want to delete this chat? This will permanently remove all messages in this conversation. This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDeleteCancel} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="error" autoFocus variant="contained">
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Success Snackbar */}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={4000}
+                onClose={() => setSnackbarOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }} variant="filled">
+                    Chat deleted successfully!
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

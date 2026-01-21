@@ -10,6 +10,8 @@ import {
   Avatar,
   List,
   ListItem,
+  CircularProgress,
+  Backdrop,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -28,12 +30,19 @@ export default function MessageWindow() {
     rooms,
     typingUsers,
     setActiveRoom,
+    onlineUsers,
+    loading,
+    loadingMore,
+    hasMore,
+    loadMoreMessages,
   } = useChatStore();
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
@@ -41,12 +50,21 @@ export default function MessageWindow() {
   );
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldScrollToBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (shouldScrollToBottom) {
+      scrollToBottom();
+    }
   }, [messages]);
+
+  // Reset scroll behavior when room changes
+  useEffect(() => {
+    setShouldScrollToBottom(true);
+  }, [activeRoomId]);
 
   // Mark as read only when activeRoomId changes or when new messages arrive from others
   useEffect(() => {
@@ -64,6 +82,7 @@ export default function MessageWindow() {
     if (!input.trim() || !activeRoomId) return;
     const message = input;
     setInput("");
+    setShouldScrollToBottom(true);
     sendMessage(activeRoomId, message);
     const socket = getSocket();
     socket.emit("stop_typing", { roomId: activeRoomId });
@@ -80,6 +99,22 @@ export default function MessageWindow() {
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stop_typing", { roomId: activeRoomId });
     }, 1000);
+  };
+
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    if (container.scrollTop === 0 && hasMore && !loadingMore && activeRoomId) {
+      const previousHeight = container.scrollHeight;
+      await loadMoreMessages(activeRoomId);
+      // Maintain scroll position after loading more
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight - previousHeight;
+      }, 0);
+      setShouldScrollToBottom(false);
+    } else {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      setShouldScrollToBottom(isNearBottom);
+    }
   };
 
   if (!activeRoomId) {
@@ -125,11 +160,20 @@ export default function MessageWindow() {
 
   const typingInRoom = typingUsers[activeRoomId] || [];
   const isOtherTyping = typingInRoom.includes(otherUser?._id);
-  const { onlineUsers } = useChatStore();
-  const isOnline = onlineUsers.includes(otherUser?._id);
+  const isOnline = otherUser?._id && onlineUsers.includes(otherUser._id);
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* Initial Loading Loader */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1, position: 'absolute' }}
+        open={loading}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <CircularProgress color="inherit" />
+          <Typography variant="body1">Loading messages...</Typography>
+        </Box>
+      </Backdrop>
       {/* Header */}
       <Box
         sx={{
@@ -171,8 +215,15 @@ export default function MessageWindow() {
 
       {/* Messages */}
       <Box
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
         sx={{ flexGrow: 1, overflowY: "auto", p: 2, bgcolor: "#f0f2f5" }}
       >
+        {loadingMore && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
         <List>
           {messages?.map((msg) => {
             const isMe = msg.sender === currentUser?.id;

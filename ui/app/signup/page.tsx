@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Box, Button, TextField, Typography, Container, Paper, Alert, Link, InputAdornment, IconButton } from '@mui/material';
+import { Box, Button, TextField, Typography, Container, Paper, Alert, Link, InputAdornment, IconButton, Backdrop, CircularProgress } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import api from '../../src/lib/api';
@@ -125,6 +125,12 @@ export default function SignupPage() {
                     </form>
                 </Paper>
             </Container>
-        </Box>
+            <Backdrop
+                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+                open={loading}
+            >
+                <CircularProgress color="inherit" />
+            </Backdrop>
+        </Box >
     );
 }
