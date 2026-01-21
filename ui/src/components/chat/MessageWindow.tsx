@@ -11,6 +11,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  CircularProgress,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -29,12 +30,17 @@ export default function MessageWindow() {
     rooms,
     typingUsers,
     setActiveRoom,
+    loadMoreMessages,
+    loadingMore,
+    hasMore,
   } = useChatStore();
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
@@ -42,15 +48,48 @@ export default function MessageWindow() {
   );
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldScrollToBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
+  }, [messages]);
+
+  // Mark as read only when activeRoomId changes or when new messages arrive from others
+  useEffect(() => {
     if (activeRoomId) {
-      useChatStore.getState().markAsRead(activeRoomId);
+      const hasUnreadFromOthers = messages.some(
+        (m) => m.roomId === activeRoomId && !m.read && m.sender !== currentUser?.id
+      );
+      if (hasUnreadFromOthers) {
+        useChatStore.getState().markAsRead(activeRoomId);
+      }
     }
-  }, [messages, activeRoomId]);
+  }, [activeRoomId, messages, currentUser?.id]);
+
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    if (container.scrollTop === 0 && hasMore && !loadingMore && activeRoomId) {
+      const prevScrollHeight = container.scrollHeight;
+      setShouldScrollToBottom(false);
+      await loadMoreMessages(activeRoomId);
+
+      // Maintain scroll position after loading more
+      setTimeout(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - prevScrollHeight;
+        }
+      }, 0);
+    }
+
+    // If user scrolls near bottom, re-enable auto-scroll
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    if (isNearBottom) {
+      setShouldScrollToBottom(true);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || !activeRoomId) return;
@@ -133,7 +172,16 @@ export default function MessageWindow() {
       </Box>
 
       {/* Messages */}
-      <Box sx={{ flexGrow: 1, overflowY: "auto", p: 2, bgcolor: "#f0f2f5" }}>
+      <Box
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        sx={{ flexGrow: 1, overflowY: "auto", p: 2, bgcolor: "#f0f2f5" }}
+      >
+        {loadingMore && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
         <List>
           {messages?.map((msg) => {
             const isMe = msg.sender === currentUser?.id;
