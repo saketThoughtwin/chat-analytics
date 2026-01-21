@@ -102,8 +102,11 @@ export default class ChatController {
     // Emit to room via socket
     io.to(roomId).emit("receive_message", newMsg);
 
-    // If receiver is online, mark as delivered and emit
+    // Also emit to receiver's personal room if it's a direct chat
+    // This ensures the recipient sees the new room/message instantly even if not in the room
     if (receiver) {
+      io.to(receiver).emit("receive_message", newMsg);
+
       const isOnline = await messageService.isUserOnline(receiver);
       if (isOnline) {
         await messageService.markAsDelivered(newMsg._id.toString());

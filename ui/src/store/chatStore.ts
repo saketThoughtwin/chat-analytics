@@ -117,15 +117,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .filter((m) => m.roomId === roomId && !m.read && m.sender !== useAuthStore.getState().user?.id)
         .map((m) => m._id);
 
-      if (unreadMessageIds.length > 0) {
-        await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
-          messageIds: unreadMessageIds,
-          roomId
-        });
-      } else {
-        await api.put(API_ENDPOINTS.CHAT.READ(roomId));
-      }
-
+      // Update local state immediately to avoid race conditions
       set((state) => ({
         rooms: state.rooms.map((r) =>
           r._id === roomId ? { ...r, unreadCount: 0 } : r,
@@ -136,6 +128,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : m
         )
       }));
+
+      if (unreadMessageIds.length > 0) {
+        await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
+          messageIds: unreadMessageIds,
+          roomId
+        });
+      } else {
+        await api.put(API_ENDPOINTS.CHAT.READ(roomId));
+      }
     } catch (error) {
       console.error("Failed to mark room as read", error);
     }
@@ -163,14 +164,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const socket = getSocket();
 
     socket.on("receive_message", (message: Message) => {
-      const { activeRoomId, rooms } = get();
+      const { activeRoomId } = get();
+      const currentUserId = useAuthStore.getState().user?.id;
 
-      // If message is for active room, add to messages list
-      if (message.roomId === activeRoomId) {
-        set((state) => {
-          const isDuplicate = state.messages.some((m) => m._id === message._id);
-          if (isDuplicate) return state;
+      set((state) => {
+        // 1. Check for duplicates (very important since we emit to room AND user)
+        const isDuplicate = state.messages.some((m) => m._id === message._id);
+        if (isDuplicate) return state;
 
+        // 2. Update messages list
+        let newMessages = [...state.messages];
+        if (message.roomId === activeRoomId) {
           const pendingIndex = state.messages.findIndex(
             (m) =>
               m.pending &&
@@ -179,47 +183,52 @@ export const useChatStore = create<ChatState>((set, get) => ({
           );
 
           if (pendingIndex !== -1) {
-            const newMessages = [...state.messages];
             newMessages[pendingIndex] = message;
-            return { messages: newMessages };
+          } else {
+            newMessages.push(message);
           }
-
-          return { messages: [...state.messages, message] };
-        });
-
-        // If it's from someone else, mark as read
-        if (message.sender !== useAuthStore.getState().user?.id) {
-          get().markAsRead(message.roomId);
         }
+
+        // 3. Update rooms list (last message and unread count)
+        const roomExists = state.rooms.some((r) => r._id === message.roomId);
+        let newRooms = [...state.rooms];
+
+        if (roomExists) {
+          newRooms = newRooms.map((r) => {
+            if (r._id === message.roomId) {
+              const isMe = message.sender === currentUserId;
+              const isRoomActive = message.roomId === activeRoomId;
+
+              return {
+                ...r,
+                lastMessage: message,
+                unreadCount: (isMe || isRoomActive)
+                  ? (r.unreadCount || 0)
+                  : (r.unreadCount || 0) + 1,
+              };
+            }
+            return r;
+          }).sort((a, b) => {
+            if (a._id === message.roomId) return -1;
+            if (b._id === message.roomId) return 1;
+            return 0;
+          });
+        }
+
+        return {
+          messages: newMessages,
+          rooms: newRooms
+        };
+      });
+
+      // 4. If message is for active room and from someone else, mark as read
+      if (message.roomId === activeRoomId && message.sender !== currentUserId) {
+        get().markAsRead(message.roomId);
       }
 
-
-      // Check if room exists in our list
-      const roomExists = rooms.some((r) => r._id === message.roomId);
-
-      if (roomExists) {
-        set((state) => ({
-          rooms: state.rooms
-            .map((r) => {
-              if (r._id === message.roomId) {
-                const isMe = message.sender === useAuthStore.getState().user?.id;
-                return {
-                  ...r,
-                  lastMessage: message,
-                  unreadCount: isMe || message.roomId === activeRoomId
-                    ? (r.unreadCount || 0)
-                    : (r.unreadCount || 0) + 1,
-                };
-              }
-              return r;
-            })
-            .sort((a, b) => {
-              if (a._id === message.roomId) return -1;
-              if (b._id === message.roomId) return 1;
-              return 0;
-            })
-        }));
-      } else {
+      // 5. If room doesn't exist, fetch all rooms
+      const { rooms } = get();
+      if (!rooms.some((r) => r._id === message.roomId)) {
         get().fetchRooms();
       }
     });
