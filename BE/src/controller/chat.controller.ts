@@ -33,7 +33,20 @@ export default class ChatController {
     const limit = parseInt(req.query.limit as string) || 20;
 
     const rooms = await roomService.getUserRooms(userId!, page, limit);
-    res.json(rooms);
+
+    // Transform rooms to include unreadCount for the current user
+    const transformedRooms = rooms.map(room => {
+      const unreadCount = room.unreadCounts instanceof Map
+        ? room.unreadCounts.get(userId!) || 0
+        : (room.unreadCounts as any)?.[userId!] || 0;
+
+      return {
+        ...room,
+        unreadCount
+      };
+    });
+
+    res.json(transformedRooms);
   }
 
   /**
@@ -46,7 +59,12 @@ export default class ChatController {
 
     if (!room) throw new ApiError(404, "Room not found");
 
-    res.json(room);
+    const userId = req.userId;
+    const unreadCount = room.unreadCounts instanceof Map
+      ? room.unreadCounts.get(userId!) || 0
+      : (room.unreadCounts as any)?.[userId!] || 0;
+
+    res.json({ ...room, unreadCount });
   }
 
   /**
@@ -84,10 +102,13 @@ export default class ChatController {
     // Emit to room via socket
     io.to(roomId).emit("receive_message", newMsg);
 
-    // Also emit to receiver's personal room if it's a direct chat
-    // This ensures the recipient sees the new room/message instantly
+    // If receiver is online, mark as delivered and emit
     if (receiver) {
-      io.to(receiver).emit("receive_message", newMsg);
+      const isOnline = await messageService.isUserOnline(receiver);
+      if (isOnline) {
+        await messageService.markAsDelivered(newMsg._id.toString());
+        io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+      }
     }
 
     res.status(201).json(newMsg);
@@ -123,15 +144,19 @@ export default class ChatController {
   static async markAsRead(req: AuthRequest, res: Response) {
 
     const { userId } = req;
-    const { messageIds } = req.body;
+    const { messageIds, roomId } = req.body;
 
     if (!Array.isArray(messageIds) || !messageIds.length)
       throw new ApiError(400, "messageIds array is required");
 
     await messageService.markAsRead(messageIds, userId!);
 
-    // Emit read receipt to senders
-    io.emit("messages_read", { messageIds, readBy: userId });
+    // Emit read receipt to room
+    if (roomId) {
+      io.to(roomId).emit("messages_read", { messageIds, readBy: userId, roomId });
+    } else {
+      io.emit("messages_read", { messageIds, readBy: userId });
+    }
 
     res.json({ message: "Messages marked as read" });
   }

@@ -131,7 +131,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           r._id === roomId ? { ...r, unreadCount: 0 } : r,
         ),
         messages: state.messages.map((m) =>
-          m.roomId === roomId ? { ...m, read: true } : m
+          m.roomId === roomId && m.sender !== useAuthStore.getState().user?.id
+            ? { ...m, read: true }
+            : m
         )
       }));
     } catch (error) {

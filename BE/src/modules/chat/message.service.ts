@@ -127,6 +127,14 @@ class MessageService {
     }
 
     /**
+     * Check if a user is currently online
+     */
+    async isUserOnline(userId: string): Promise<boolean> {
+        const status = await redis.get(`last_seen:${userId}`);
+        return status === "online";
+    }
+
+    /**
      * Get message count for a user (total messages sent)
      */
     async getUserMessageCount(userId: string): Promise<number> {
