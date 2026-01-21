@@ -1,177 +1,306 @@
-import { create } from 'zustand';
-import { getSocket } from '../lib/socket';
-import api from '../lib/api';
-import { API_ENDPOINTS } from '../lib/apiendpoint';
+import { create } from "zustand";
+import { getSocket } from "../lib/socket";
+import api from "../lib/api";
+import { API_ENDPOINTS } from "../lib/apiendpoint";
+import { useAuthStore } from "./authStore";
+
 
 interface Message {
-    _id: string;
-    sender: string;
-    roomId: string;
-    message: string;
-    read: boolean;
-    createdAt: string;
+  _id: string;
+  sender: string;
+  roomId: string;
+  message: string;
+  read: boolean;
+  delivered?: boolean;
+  createdAt: string;
+  tempId?: string;
+  pending?: boolean;
 }
 
 interface Room {
-    _id: string;
-    participants: any[];
-    lastMessage?: Message;
-    unreadCount?: number;
+  _id: string;
+  participants: any[];
+  lastMessage?: Message;
+  unreadCount?: number;
 }
 
 interface ChatState {
-    rooms: Room[];
-    activeRoomId: string | null;
-    messages: Message[];
-    onlineUsers: string[];
-    typingUsers: Record<string, string[]>; // roomId -> userIds
+  rooms: Room[];
+  activeRoomId: string | null;
+  messages: Message[];
+  onlineUsers: string[];
+  typingUsers: Record<string, string[]>; // roomId -> userIds
 
-    fetchRooms: () => Promise<void>;
-    setActiveRoom: (roomId: string | null) => void;
-    fetchMessages: (roomId: string) => Promise<void>;
-    sendMessage: (roomId: string, content: string) => Promise<void>;
-    markAsRead: (roomId: string) => Promise<void>;
+  fetchRooms: () => Promise<void>;
+  setActiveRoom: (roomId: string | null) => void;
+  fetchMessages: (roomId: string) => Promise<void>;
+  sendMessage: (roomId: string, content: string) => Promise<void>;
+  markAsRead: (roomId: string) => Promise<void>;
+  addLocalMessage: (msg: Message) => void;
+  replaceMessage: (tempId: string, newMsg: Message) => void;
 
-    // Socket event handlers
-    initSocketEvents: () => void;
+  // Socket event handlers
+  initSocketEvents: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-    rooms: [],
-    activeRoomId: null,
-    messages: [],
-    onlineUsers: [],
-    typingUsers: {},
+  rooms: [],
+  activeRoomId: null,
+  messages: [],
+  onlineUsers: [],
+  typingUsers: {},
 
-    fetchRooms: async () => {
-        try {
-            const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
-            set({ rooms: response.data || [] });
-        } catch (error) {
-            console.error('Failed to fetch rooms', error);
-        }
-    },
-
-    setActiveRoom: (roomId) => {
-        set({ activeRoomId: roomId });
-        if (roomId) {
-            get().fetchMessages(roomId);
-            const socket = getSocket();
-            socket.emit('join_room', roomId);
-        } else {
-            set({ messages: [] });
-        }
-    },
-
-    fetchMessages: async (roomId) => {
-        try {
-            const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId));
-            set({ messages: response.data.messages || [] });
-        } catch (error) {
-            console.error('Failed to fetch messages', error);
-        }
-    },
-
-    sendMessage: async (roomId, content) => {
-        try {
-            await api.post(API_ENDPOINTS.CHAT.MESSAGES(roomId), { message: content });
-            // Message will be received via socket
-        } catch (error) {
-            console.error('Failed to send message', error);
-        }
-    },
-
-    markAsRead: async (roomId) => {
-        try {
-            await api.put(API_ENDPOINTS.CHAT.READ(roomId));
-            set((state) => ({
-                rooms: state.rooms.map(r => r._id === roomId ? { ...r, unreadCount: 0 } : r)
-            }));
-        } catch (error) {
-            console.error('Failed to mark room as read', error);
-        }
-    },
-
-    initSocketEvents: () => {
-        const socket = getSocket();
-
-        socket.on('receive_message', (message: Message) => {
-            const { activeRoomId, messages, rooms } = get();
-
-            // If message is for active room, add to messages list
-            if (message.roomId === activeRoomId) {
-                set({ messages: [...messages, message] });
-                get().markAsRead(message.roomId);
-            }
-
-            // Check if room exists in our list
-            const roomExists = rooms.some(r => r._id === message.roomId);
-
-            if (roomExists) {
-                // Update existing room and move to top
-                const updatedRooms = rooms.map(r => {
-                    if (r._id === message.roomId) {
-                        return {
-                            ...r,
-                            lastMessage: message,
-                            unreadCount: (r.unreadCount || 0) + (message.roomId === activeRoomId ? 0 : 1)
-                        };
-                    }
-                    return r;
-                }).sort((a, b) => {
-                    if (a._id === message.roomId) return -1;
-                    if (b._id === message.roomId) return 1;
-                    return 0;
-                });
-                set({ rooms: updatedRooms });
-            } else {
-                // Room doesn't exist (new chat), fetch all rooms to get the new one
-                get().fetchRooms();
-            }
-        });
-
-        socket.on('online_users_list', ({ userIds }: { userIds: string[] }) => {
-            set({ onlineUsers: userIds });
-        });
-
-        socket.on('user_online', ({ userId }) => {
-            set((state) => ({ onlineUsers: [...new Set([...state.onlineUsers, userId])] }));
-        });
-
-        socket.on('user_offline', ({ userId }) => {
-            set((state) => ({ onlineUsers: state.onlineUsers.filter(id => id !== userId) }));
-        });
-
-        socket.on('typing', ({ from, roomId }) => {
-            set((state) => {
-                const roomTyping = state.typingUsers[roomId] || [];
-                return {
-                    typingUsers: {
-                        ...state.typingUsers,
-                        [roomId]: [...new Set([...roomTyping, from])]
-                    }
-                };
-            });
-        });
-
-        socket.on('stop_typing', ({ from, roomId }) => {
-            set((state) => {
-                const roomTyping = state.typingUsers[roomId] || [];
-                return {
-                    typingUsers: {
-                        ...state.typingUsers,
-                        [roomId]: roomTyping.filter(id => id !== from)
-                    }
-                };
-            });
-        });
-
-        socket.on('messages_read', ({ messageIds, readBy }) => {
-            const { messages } = get();
-            const updatedMessages = messages.map(msg =>
-                messageIds.includes(msg._id) ? { ...msg, read: true } : msg
-            );
-            set({ messages: updatedMessages });
-        });
+  fetchRooms: async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
+      set({ rooms: response.data || [] });
+    } catch (error) {
+      console.error("Failed to fetch rooms", error);
     }
+  },
+
+  setActiveRoom: (roomId) => {
+    set({ activeRoomId: roomId });
+    if (roomId) {
+      get().fetchMessages(roomId);
+      const socket = getSocket();
+      socket.emit("join_room", roomId);
+      get().markAsRead(roomId);
+    } else {
+      set({ messages: [] });
+    }
+  },
+
+  fetchMessages: async (roomId) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId));
+      set({ messages: response.data.messages || [] });
+    } catch (error) {
+      console.error("Failed to fetch messages", error);
+    }
+  },
+
+  sendMessage: async (roomId, content) => {
+    const tempId = `temp-${Date.now()}`;
+    const currentUser = useAuthStore.getState().user;
+
+    const senderId = currentUser?.id || "me";
+
+    get().addLocalMessage({
+      _id: tempId,
+      tempId,
+      roomId,
+      sender: senderId,
+      message: content,
+      createdAt: new Date().toISOString(),
+      read: false,
+      pending: true,
+    });
+
+    try {
+      const res = await api.post(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
+        message: content,
+      });
+      get().replaceMessage(tempId, {
+        ...res.data,
+        pending: false,
+      });
+    } catch (error) {
+      console.error("Failed to send message", error);
+    }
+  },
+
+  markAsRead: async (roomId) => {
+    try {
+      const { messages } = get();
+      const unreadMessageIds = messages
+        .filter((m) => m.roomId === roomId && !m.read && m.sender !== useAuthStore.getState().user?.id)
+        .map((m) => m._id);
+
+      if (unreadMessageIds.length > 0) {
+        await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
+          messageIds: unreadMessageIds,
+          roomId
+        });
+      } else {
+        await api.put(API_ENDPOINTS.CHAT.READ(roomId));
+      }
+
+      set((state) => ({
+        rooms: state.rooms.map((r) =>
+          r._id === roomId ? { ...r, unreadCount: 0 } : r,
+        ),
+        messages: state.messages.map((m) =>
+          m.roomId === roomId ? { ...m, read: true } : m
+        )
+      }));
+    } catch (error) {
+      console.error("Failed to mark room as read", error);
+    }
+  },
+  addLocalMessage: (msg) =>
+    set((state) => ({
+      messages: [...state.messages, msg],
+    })),
+  replaceMessage: (tempId, newMsg) =>
+    set((state) => {
+      const messageExists = state.messages.some((m) => m._id === newMsg._id);
+      if (messageExists) {
+        // If the message already exists (e.g. from socket), just remove the temp one
+        return {
+          messages: state.messages.filter((m) => m.tempId !== tempId),
+        };
+      }
+      return {
+        messages: state.messages.map((m) => (m.tempId === tempId ? newMsg : m)),
+      };
+    }),
+
+
+  initSocketEvents: () => {
+    const socket = getSocket();
+
+    socket.on("receive_message", (message: Message) => {
+      const { activeRoomId, rooms } = get();
+
+      // If message is for active room, add to messages list
+      if (message.roomId === activeRoomId) {
+        set((state) => {
+          const isDuplicate = state.messages.some((m) => m._id === message._id);
+          if (isDuplicate) return state;
+
+          const pendingIndex = state.messages.findIndex(
+            (m) =>
+              m.pending &&
+              m.message === message.message &&
+              m.sender === message.sender,
+          );
+
+          if (pendingIndex !== -1) {
+            const newMessages = [...state.messages];
+            newMessages[pendingIndex] = message;
+            return { messages: newMessages };
+          }
+
+          return { messages: [...state.messages, message] };
+        });
+
+        // If it's from someone else, mark as read
+        if (message.sender !== useAuthStore.getState().user?.id) {
+          get().markAsRead(message.roomId);
+        }
+      }
+
+
+      // Check if room exists in our list
+      const roomExists = rooms.some((r) => r._id === message.roomId);
+
+      if (roomExists) {
+        set((state) => ({
+          rooms: state.rooms
+            .map((r) => {
+              if (r._id === message.roomId) {
+                const isMe = message.sender === useAuthStore.getState().user?.id;
+                return {
+                  ...r,
+                  lastMessage: message,
+                  unreadCount: isMe || message.roomId === activeRoomId
+                    ? (r.unreadCount || 0)
+                    : (r.unreadCount || 0) + 1,
+                };
+              }
+              return r;
+            })
+            .sort((a, b) => {
+              if (a._id === message.roomId) return -1;
+              if (b._id === message.roomId) return 1;
+              return 0;
+            })
+        }));
+      } else {
+        get().fetchRooms();
+      }
+    });
+
+    socket.on("message_delivered", ({ messageId, roomId }) => {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? { ...m, delivered: true } : m
+        ),
+        rooms: state.rooms.map((r) =>
+          r._id === roomId && r.lastMessage?._id === messageId
+            ? { ...r, lastMessage: { ...r.lastMessage!, delivered: true } }
+            : r
+        )
+      }));
+    });
+
+    socket.on("messages_read", ({ messageIds, readBy, roomId }) => {
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          messageIds.includes(msg._id) ? { ...msg, read: true } : msg,
+        ),
+        rooms: state.rooms.map((r) =>
+          r._id === roomId && r.lastMessage?._id && messageIds.includes(r.lastMessage._id)
+            ? { ...r, lastMessage: { ...r.lastMessage!, read: true } }
+            : r
+        )
+      }));
+    });
+
+    socket.on("room_read", ({ roomId, readBy }) => {
+      if (readBy !== useAuthStore.getState().user?.id) {
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.roomId === roomId ? { ...m, read: true } : m
+          ),
+          rooms: state.rooms.map((r) =>
+            r._id === roomId
+              ? { ...r, lastMessage: r.lastMessage ? { ...r.lastMessage, read: true } : undefined }
+              : r
+          )
+        }));
+      }
+    });
+
+    socket.on("online_users_list", ({ userIds }: { userIds: string[] }) => {
+      set({ onlineUsers: userIds });
+    });
+
+    socket.on("user_online", ({ userId }) => {
+      set((state) => ({
+        onlineUsers: [...new Set([...state.onlineUsers, userId])],
+      }));
+    });
+
+    socket.on("user_offline", ({ userId }) => {
+      set((state) => ({
+        onlineUsers: state.onlineUsers.filter((id) => id !== userId),
+      }));
+    });
+
+    socket.on("typing", ({ from, roomId }) => {
+      set((state) => {
+        const roomTyping = state.typingUsers[roomId] || [];
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [roomId]: [...new Set([...roomTyping, from])],
+          },
+        };
+      });
+    });
+
+    socket.on("stop_typing", ({ from, roomId }) => {
+      set((state) => {
+        const roomTyping = state.typingUsers[roomId] || [];
+        return {
+          typingUsers: {
+            ...state.typingUsers,
+            [roomId]: roomTyping.filter((id) => id !== from),
+          },
+        };
+      });
+    });
+  },
 }));

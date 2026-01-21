@@ -104,7 +104,7 @@ export default function RoomList() {
                                     }
                                 />
                                 {room.unreadCount ? (
-                                    <Badge badgeContent={room.unreadCount} color="error" sx={{ ml: 1 }} />
+                                    <Badge badgeContent={room.unreadCount} color="success" sx={{ ml: 1 }} />
                                 ) : null}
                             </ListItemButton>
                         </ListItem>
