@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     },
     CHAT: {
         ROOMS: '/chat/rooms',
+        ROOM_BY_ID: '/chat/rooms/:roomId',
         MESSAGES: (roomId: string) => `/chat/rooms/${roomId}/messages`,
         READ: (roomId: string) => `/chat/rooms/${roomId}/read`,
         READ_MESSAGES: '/chat/messages/read',

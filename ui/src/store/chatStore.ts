@@ -30,18 +30,13 @@ interface ChatState {
   messages: Message[];
   onlineUsers: string[];
   typingUsers: Record<string, string[]>; // roomId -> userIds
-  loading: boolean;
-  loadingMore: boolean;
-  hasMore: boolean;
-  page: number;
-  error: string | null;
 
   fetchRooms: () => Promise<void>;
   setActiveRoom: (roomId: string | null) => void;
   fetchMessages: (roomId: string) => Promise<void>;
-  loadMoreMessages: (roomId: string) => Promise<void>;
   sendMessage: (roomId: string, content: string) => Promise<void>;
   markAsRead: (roomId: string) => Promise<void>;
+  deleteRoom: (roomId: string) => Promise<void>;
   addLocalMessage: (msg: Message) => void;
   replaceMessage: (tempId: string, newMsg: Message) => void;
 
@@ -55,11 +50,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   onlineUsers: [],
   typingUsers: {},
-  loading: false,
-  loadingMore: false,
-  hasMore: true,
-  page: 1,
-  error: null,
 
   fetchRooms: async () => {
     try {
@@ -78,57 +68,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       socket.emit("join_room", roomId);
       get().markAsRead(roomId);
     } else {
-      set({ messages: [], page: 1, hasMore: true });
+      set({ messages: [] });
     }
   },
 
   fetchMessages: async (roomId) => {
-    set({ loading: true, error: null, page: 1, hasMore: true });
     try {
-      const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
-        params: { page: 1, limit: 30 }
-      });
-      const messages = response.data.messages || response.data;
-      const hasMore = Array.isArray(response.data.messages)
-        ? response.data.page < response.data.pages
-        : messages.length === 30;
-
-      set({
-        messages: Array.isArray(messages) ? messages : [],
-        loading: false,
-        hasMore
-      });
+      const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId));
+      set({ messages: response.data.messages || [] });
     } catch (error) {
       console.error("Failed to fetch messages", error);
-      set({ error: "Failed to fetch messages", loading: false });
-    }
-  },
-
-  loadMoreMessages: async (roomId) => {
-    const { page, hasMore, loadingMore } = get();
-    if (!hasMore || loadingMore) return;
-
-    set({ loadingMore: true });
-    try {
-      const nextPage = page + 1;
-      const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
-        params: { page: nextPage, limit: 30 }
-      });
-
-      const newMessages = response.data.messages || response.data;
-      const stillHasMore = Array.isArray(response.data.messages)
-        ? response.data.page < response.data.pages
-        : newMessages.length === 30;
-
-      set((state) => ({
-        messages: [...newMessages, ...state.messages],
-        page: nextPage,
-        hasMore: stillHasMore,
-        loadingMore: false
-      }));
-    } catch (error) {
-      set({ loadingMore: false });
-      console.error("Failed to load more messages", error);
     }
   },
 
@@ -191,6 +140,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     } catch (error) {
       console.error("Failed to mark room as read", error);
+    }
+  },
+
+  deleteRoom: async (roomId) => {
+    try {
+      await api.delete(API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(":roomId", roomId));
+      set((state) => ({
+        rooms: state.rooms.filter((r) => r._id !== roomId),
+        activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
+        messages: state.activeRoomId === roomId ? [] : state.messages,
+      }));
+    } catch (error) {
+      console.error("Failed to delete room", error);
     }
   },
   addLocalMessage: (msg) =>

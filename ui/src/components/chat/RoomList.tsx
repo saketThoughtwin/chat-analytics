@@ -1,21 +1,21 @@
-'use client';
-
 import React, { useEffect, useState } from 'react';
-import { Box, List, ListItem, ListItemAvatar, Avatar, ListItemText, Typography, Divider, Badge, ListItemButton, IconButton, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemAvatar, Avatar, ListItemText, Typography, Divider, Badge, ListItemButton, IconButton, Tooltip, Menu, MenuItem } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '../../store/chatStore';
 import { useAuthStore } from '../../store/authStore';
 import CreateChatDialog from './CreateChatDialog';
 
 export default function RoomList() {
-    const { rooms, fetchRooms, setActiveRoom, activeRoomId, onlineUsers, typingUsers } = useChatStore();
+    const { rooms, fetchRooms, setActiveRoom, activeRoomId, onlineUsers, typingUsers, deleteRoom } = useChatStore();
     const { user: currentUser, logout } = useAuthStore();
     const router = useRouter();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [menuAnchor, setMenuAnchor] = useState<{ [key: string]: HTMLElement | null }>({});
 
     useEffect(() => {
         fetchRooms();
@@ -28,6 +28,22 @@ export default function RoomList() {
 
     const getOtherParticipant = (room: any) => {
         return room.participants.find((p: any) => (p._id || p) !== currentUser?.id);
+    };
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, roomId: string) => {
+        event.stopPropagation();
+        setMenuAnchor({ ...menuAnchor, [roomId]: event.currentTarget });
+    };
+
+    const handleMenuClose = (roomId: string) => {
+        setMenuAnchor({ ...menuAnchor, [roomId]: null });
+    };
+
+    const handleDeleteChat = async (roomId: string) => {
+        if (window.confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
+            await deleteRoom(roomId);
+        }
+        handleMenuClose(roomId);
     };
 
     return (
@@ -70,6 +86,23 @@ export default function RoomList() {
                         <ListItem
                             key={room._id}
                             disablePadding
+                            secondaryAction={
+                                <>
+                                    <IconButton edge="end" aria-label="more" onClick={(e) => handleMenuOpen(e, room._id)}>
+                                        <MoreVertIcon />
+                                    </IconButton>
+                                    <Menu
+                                        anchorEl={menuAnchor[room._id]}
+                                        open={Boolean(menuAnchor[room._id])}
+                                        onClose={() => handleMenuClose(room._id)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <MenuItem onClick={() => handleDeleteChat(room._id)} sx={{ color: 'error.main' }}>
+                                            Delete Chat
+                                        </MenuItem>
+                                    </Menu>
+                                </>
+                            }
                             sx={{
                                 '&:hover': { bgcolor: '#f5f5f5' }
                             }}
@@ -104,7 +137,7 @@ export default function RoomList() {
                                     }
                                 />
                                 {room.unreadCount ? (
-                                    <Badge badgeContent={room.unreadCount} color="success" sx={{ ml: 1 }} />
+                                    <Badge badgeContent={room.unreadCount} color="success" sx={{ ml: 1, mr: 2 }} />
                                 ) : null}
                             </ListItemButton>
                         </ListItem>

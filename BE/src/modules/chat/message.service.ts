@@ -150,6 +150,13 @@ class MessageService {
 
         return count;
     }
+
+    /**
+     * Delete all messages in a room
+     */
+    async deleteMessagesByRoomId(roomId: string): Promise<void> {
+        await messageRepository.deleteByRoomId(roomId);
+    }
 }
 
 export default new MessageService();

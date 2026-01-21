@@ -108,6 +108,13 @@ class RoomService {
 
         return room;
     }
+
+    /**
+     * Delete a room
+     */
+    async deleteRoom(roomId: string): Promise<void> {
+        await roomRepository.deleteById(roomId);
+    }
 }
 
 export default new RoomService();

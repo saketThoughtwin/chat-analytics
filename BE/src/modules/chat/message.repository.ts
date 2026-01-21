@@ -8,23 +8,23 @@ class MessageRepository {
     async findById(id: string) {
         return ChatMessage.findById(id).lean();
     }
-  
-  async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
-    return ChatMessage.find({ roomId, deleted: false })
-      .sort(options?.sort || { createdAt: -1 })
-      .skip(options?.skip || 0)
-      .limit(options?.limit || 50)
-      .lean()               
-      .exec();
-  }
+
+    async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
+        return ChatMessage.find({ roomId, deleted: false })
+            .sort(options?.sort || { createdAt: -1 })
+            .skip(options?.skip || 0)
+            .limit(options?.limit || 50)
+            .lean()
+            .exec();
+    }
 
     async findBySender(senderId: string, options?: { skip?: number; limit?: number }) {
-    return ChatMessage.find({ sender: senderId, deleted: false })
-      .skip(options?.skip || 0)
-      .limit(options?.limit || 50)
-      .lean()                // ✅
-      .exec();
-  }
+        return ChatMessage.find({ sender: senderId, deleted: false })
+            .skip(options?.skip || 0)
+            .limit(options?.limit || 50)
+            .lean()                // ✅
+            .exec();
+    }
 
     async findUnreadByReceiver(receiverId: string) {
         return ChatMessage.find({ receiver: receiverId, read: false, deleted: false }).lean();
@@ -91,6 +91,10 @@ class MessageRepository {
 
     async deleteById(id: string) {
         return ChatMessage.findByIdAndDelete(id);
+    }
+
+    async deleteByRoomId(roomId: string) {
+        return ChatMessage.deleteMany({ roomId });
     }
 }
 

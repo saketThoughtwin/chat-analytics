@@ -221,4 +221,29 @@ export default class ChatController {
     });
     res.json(result.messages);
   }
+
+  /**
+   * Delete a room and all its messages
+   * DELETE /api/chat/rooms/:roomId
+   */
+  static async deleteRoom(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+
+    // Verify room exists and user is a participant
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+
+    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+      throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    // Delete all messages in the room
+    await messageService.deleteMessagesByRoomId(roomId);
+
+    // Delete the room itself
+    await roomService.deleteRoom(roomId);
+
+    res.json({ message: "Chat deleted successfully" });
+  }
 }

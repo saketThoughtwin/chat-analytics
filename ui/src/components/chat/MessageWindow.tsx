@@ -10,8 +10,6 @@ import {
   Avatar,
   List,
   ListItem,
-  ListItemText,
-  CircularProgress,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -30,17 +28,12 @@ export default function MessageWindow() {
     rooms,
     typingUsers,
     setActiveRoom,
-    loadMoreMessages,
-    loadingMore,
-    hasMore,
   } = useChatStore();
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
@@ -48,9 +41,7 @@ export default function MessageWindow() {
   );
 
   const scrollToBottom = () => {
-    if (shouldScrollToBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -68,28 +59,6 @@ export default function MessageWindow() {
       }
     }
   }, [activeRoomId, messages, currentUser?.id]);
-
-  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    if (container.scrollTop === 0 && hasMore && !loadingMore && activeRoomId) {
-      const prevScrollHeight = container.scrollHeight;
-      setShouldScrollToBottom(false);
-      await loadMoreMessages(activeRoomId);
-
-      // Maintain scroll position after loading more
-      setTimeout(() => {
-        if (container) {
-          container.scrollTop = container.scrollHeight - prevScrollHeight;
-        }
-      }, 0);
-    }
-
-    // If user scrolls near bottom, re-enable auto-scroll
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-    if (isNearBottom) {
-      setShouldScrollToBottom(true);
-    }
-  };
 
   const handleSend = async () => {
     if (!input.trim() || !activeRoomId) return;
@@ -119,20 +88,45 @@ export default function MessageWindow() {
         sx={{
           height: "100%",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          bgcolor: "#f9f9f9",
+          bgcolor: "#f0f2f5",
+          textAlign: "center",
+          p: 3,
         }}
       >
-        <Typography variant="h6" color="textSecondary">
-          Select a chat to start messaging
+        <Box
+          component="img"
+          src="/desktop.png"
+          alt="Welcome"
+          sx={{
+            width: "100%",
+            maxWidth: 400,
+            mb: 4,
+            opacity: 0.8,
+          }}
+        />
+        <Typography variant="h4" fontWeight="300" color="textPrimary" gutterBottom>
+          Chat Analytics
         </Typography>
+        <Typography variant="body1" color="textSecondary" sx={{ maxWidth: 500 }}>
+          Send and receive messages without keeping your phone online.
+        </Typography>
+        <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1, color: "textSecondary" }}>
+          <DoneAllIcon sx={{ fontSize: 16 }} />
+          <Typography variant="caption">
+            End-to-end encrypted
+          </Typography>
+        </Box>
       </Box>
     );
   }
 
   const typingInRoom = typingUsers[activeRoomId] || [];
   const isOtherTyping = typingInRoom.includes(otherUser?._id);
+  const { onlineUsers } = useChatStore();
+  const isOnline = onlineUsers.includes(otherUser?._id);
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -163,25 +157,22 @@ export default function MessageWindow() {
           <Typography variant="subtitle1" fontWeight="bold">
             {otherUser?.name}
           </Typography>
-          {isOtherTyping && (
-            <Typography variant="caption" color="primary">
+          {isOtherTyping ? (
+            <Typography variant="caption" sx={{ color: "#25D366", fontWeight: "bold" }}>
               typing...
             </Typography>
-          )}
+          ) : isOnline ? (
+            <Typography variant="caption" color="primary">
+              online
+            </Typography>
+          ) : null}
         </Box>
       </Box>
 
       {/* Messages */}
       <Box
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
         sx={{ flexGrow: 1, overflowY: "auto", p: 2, bgcolor: "#f0f2f5" }}
       >
-        {loadingMore && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
         <List>
           {messages?.map((msg) => {
             const isMe = msg.sender === currentUser?.id;
