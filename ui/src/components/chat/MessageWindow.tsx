@@ -236,7 +236,7 @@ export default function MessageWindow() {
             setActiveRoom(null);
             router.push("/");
           }}
-          sx={{ mr: 1, display: { xs: "flex", md: "flex" } }}
+          sx={{ mr: 1, display: { xs: "flex", md: "none" } }}
           size="small"
         >
           <ArrowBackIcon />

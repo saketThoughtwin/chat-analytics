@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 
 export default function ChatLayout() {
     const initSocketEvents = useChatStore((state) => state.initSocketEvents);
+    const activeRoomId = useChatStore((state) => state.activeRoomId);
     const { token, fetchMe, _hasHydrated } = useAuthStore();
     const router = useRouter();
 
@@ -71,12 +72,19 @@ export default function ChatLayout() {
                 backdropFilter: 'blur(24px)',
                 border: '1px solid rgba(255, 255, 255, 0.4)'
             }}>
-                <Grid size={{ xs: 12, md: 4, lg: 3 }} sx={{ height: '100%', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
+                <Grid size={{ xs: 12, md: 4, lg: 3 }} sx={{
+                    height: '100%',
+                    borderRight: '1px solid rgba(0,0,0,0.06)',
+                    display: { xs: activeRoomId ? 'none' : 'block', md: 'block' }
+                }}>
                     <Paper square elevation={0} sx={{ height: '100%', bgcolor: 'transparent' }}>
                         <RoomList />
                     </Paper>
                 </Grid>
-                <Grid size={{ xs: 12, md: 8, lg: 9 }} sx={{ height: '100%' }}>
+                <Grid size={{ xs: 12, md: 8, lg: 9 }} sx={{
+                    height: '100%',
+                    display: { xs: activeRoomId ? 'block' : 'none', md: 'block' }
+                }}>
                     <Paper square elevation={0} sx={{ height: '100%', bgcolor: 'transparent' }}>
                         <MessageWindow />
                     </Paper>
