@@ -353,14 +353,14 @@ export default function MessageWindow() {
                     {isMe &&
                       (msg.pending ? (
                         <DoneIcon
-                          sx={{ fontSize: 14, color: "inherit", opacity: 0.7 }}
+                          sx={{ fontSize: 14, color: "inherit", opacity: 0.5 }}
                         />
                       ) : msg.read ? (
-                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit" }} />
+                        <DoneAllIcon sx={{ fontSize: 14, color: "#00e5ff", filter: 'drop-shadow(0 0 2px rgba(0,229,255,0.5))' }} />
                       ) : msg.delivered ? (
-                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.7 }} />
+                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />
                       ) : (
-                        <DoneIcon sx={{ fontSize: 14, color: "inherit" }} />
+                        <DoneIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />
                       ))}
                   </Box>
                 </Paper>
