@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   Box,
   Typography,
@@ -42,35 +42,44 @@ export default function MessageWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
+  const shouldScrollRef = useRef(true);
+  const isInitialLoadRef = useRef(true);
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
     (p: any) => (p._id || p) !== currentUser?.id,
   );
 
-  const scrollToBottom = () => {
-    if (shouldScrollToBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   useEffect(() => {
-    if (shouldScrollToBottom) {
-      scrollToBottom();
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (isInitialLoadRef.current) {
+      container.scrollTop = container.scrollHeight;
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    if (shouldScrollRef.current) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [messages]);
 
   // Reset scroll behavior when room changes
   useEffect(() => {
-    setShouldScrollToBottom(true);
+    shouldScrollRef.current = true;
+    isInitialLoadRef.current = true;
   }, [activeRoomId]);
 
   // Mark as read only when activeRoomId changes or when new messages arrive from others
   useEffect(() => {
     if (activeRoomId) {
       const hasUnreadFromOthers = messages.some(
-        (m) => m.roomId === activeRoomId && !m.read && m.sender !== currentUser?.id
+        (m) =>
+          m.roomId === activeRoomId && !m.read && m.sender !== currentUser?.id,
       );
       if (hasUnreadFromOthers) {
         useChatStore.getState().markAsRead(activeRoomId);
@@ -82,7 +91,7 @@ export default function MessageWindow() {
     if (!input.trim() || !activeRoomId) return;
     const message = input;
     setInput("");
-    setShouldScrollToBottom(true);
+    shouldScrollRef.current = true;
     sendMessage(activeRoomId, message);
     const socket = getSocket();
     socket.emit("stop_typing", { roomId: activeRoomId });
@@ -100,20 +109,24 @@ export default function MessageWindow() {
       socket.emit("stop_typing", { roomId: activeRoomId });
     }, 1000);
   };
-
-  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
-    if (container.scrollTop === 0 && hasMore && !loadingMore && activeRoomId) {
-      const previousHeight = container.scrollHeight;
-      await loadMoreMessages(activeRoomId);
-      // Maintain scroll position after loading more
-      setTimeout(() => {
-        container.scrollTop = container.scrollHeight - previousHeight;
-      }, 0);
-      setShouldScrollToBottom(false);
-    } else {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      setShouldScrollToBottom(isNearBottom);
+
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      120;
+
+    shouldScrollRef.current = isNearBottom;
+
+    if (container.scrollTop < 50 && hasMore && !loadingMore && activeRoomId) {
+      const prevHeight = container.scrollHeight;
+
+      loadMoreMessages(activeRoomId).then(() => {
+        requestAnimationFrame(() => {
+          const newHeight = container.scrollHeight;
+          container.scrollTop = newHeight - prevHeight;
+        });
+      });
     }
   };
 
@@ -142,17 +155,32 @@ export default function MessageWindow() {
             opacity: 0.8,
           }}
         />
-        <Typography variant="h4" fontWeight="300" color="textPrimary" gutterBottom>
+        <Typography
+          variant="h4"
+          fontWeight="300"
+          color="textPrimary"
+          gutterBottom
+        >
           Chat Analytics
         </Typography>
-        <Typography variant="body1" color="textSecondary" sx={{ maxWidth: 500 }}>
+        <Typography
+          variant="body1"
+          color="textSecondary"
+          sx={{ maxWidth: 500 }}
+        >
           Send and receive messages without keeping your phone online.
         </Typography>
-        <Box sx={{ mt: "auto", display: "flex", alignItems: "center", gap: 1, color: "textSecondary" }}>
+        <Box
+          sx={{
+            mt: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            color: "textSecondary",
+          }}
+        >
           <DoneAllIcon sx={{ fontSize: 16 }} />
-          <Typography variant="caption">
-            End-to-end encrypted
-          </Typography>
+          <Typography variant="caption">End-to-end encrypted</Typography>
         </Box>
       </Box>
     );
@@ -163,14 +191,30 @@ export default function MessageWindow() {
   const isOnline = otherUser?._id && onlineUsers.includes(otherUser._id);
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
       {/* Initial Loading Loader */}
       <Backdrop
-        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1, position: 'absolute' }}
+        sx={{ position: "absolute", backgroundColor: "rgba(0,0,0,0.05)" }}
         open={loading}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <CircularProgress color="inherit" />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+          }}
+        >
+          <CircularProgress color="inherit" sx={{ opacity: 0.4 }} />
           <Typography variant="body1">Loading messages...</Typography>
         </Box>
       </Backdrop>
@@ -178,10 +222,13 @@ export default function MessageWindow() {
       <Box
         sx={{
           p: 2,
-          borderBottom: "1px solid #e0e0e0",
           display: "flex",
           alignItems: "center",
-          bgcolor: "background.paper",
+          bgcolor: "rgba(248, 250, 252, 0.8)", // Dimmer header
+          backdropFilter: 'blur(10px)',
+          height: 80,
+          zIndex: 2,
+          borderBottom: '1px solid rgba(0,0,0,0.06)'
         }}
       >
         <IconButton
@@ -194,22 +241,44 @@ export default function MessageWindow() {
         >
           <ArrowBackIcon />
         </IconButton>
-        <Avatar alt={otherUser?.name} src={otherUser?.avatar} sx={{ mr: 2 }}>
-          {otherUser?.name?.charAt(0)}
-        </Avatar>
+        <Box sx={{ position: 'relative', mr: 2 }}>
+          <Avatar
+            alt={otherUser?.name}
+            src={otherUser?.avatar}
+            sx={{ width: 44, height: 44 }}
+          >
+            {otherUser?.name?.charAt(0)}
+          </Avatar>
+          {isOnline && (
+            <Box sx={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              width: 12,
+              height: 12,
+              bgcolor: '#22c55e',
+              borderRadius: '50%',
+              border: '2px solid white'
+            }} />
+          )}
+        </Box>
         <Box>
-          <Typography variant="subtitle1" fontWeight="bold">
+          <Typography variant="h6" fontWeight="700" lineHeight={1.2}>
             {otherUser?.name}
           </Typography>
           {isOtherTyping ? (
-            <Typography variant="caption" sx={{ color: "#25D366", fontWeight: "bold" }}>
+            <Typography variant="caption" sx={{ color: "#6366f1", fontWeight: "600" }}>
               typing...
             </Typography>
           ) : isOnline ? (
-            <Typography variant="caption" color="primary">
-              online
+            <Typography variant="caption" sx={{ color: '#22c55e', fontWeight: '500' }}>
+              Active now
             </Typography>
-          ) : null}
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Offline
+            </Typography>
+          )}
         </Box>
       </Box>
 
@@ -217,14 +286,19 @@ export default function MessageWindow() {
       <Box
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        sx={{ flexGrow: 1, overflowY: "auto", p: 2, bgcolor: "#f0f2f5" }}
+        sx={{
+          flexGrow: 1,
+          overflowY: "auto",
+          p: 3,
+          bgcolor: "transparent", // Let the gradient shine through or keep white
+        }}
       >
         {loadingMore && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
             <CircularProgress size={24} />
           </Box>
         )}
-        <List>
+        <List sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {messages?.map((msg) => {
             const isMe = msg.sender === currentUser?.id;
             return (
@@ -233,51 +307,61 @@ export default function MessageWindow() {
                 sx={{
                   flexDirection: "column",
                   alignItems: isMe ? "flex-end" : "flex-start",
-                  mb: 1,
+                  p: 0,
+                  width: '100%'
                 }}
               >
                 <Paper
-                  elevation={1}
+                  elevation={0}
                   sx={{
-                    p: 1.5,
+                    p: '10px 16px',
                     maxWidth: "70%",
-                    bgcolor: isMe ? "#dcf8c6" : "white",
-                    borderRadius: isMe
-                      ? "15px 15px 0 15px"
-                      : "15px 15px 15px 0",
+                    // Gradient for me, slightly dimmer white/gray for them
+                    background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#ffffff",
+                    color: isMe ? 'white' : '#1e293b',
+                    borderRadius: '20px', // Pill shape
+                    borderBottomRightRadius: isMe ? '4px' : '20px',
+                    borderBottomLeftRadius: isMe ? '20px' : '4px',
+                    boxShadow: isMe ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)', // Softer shadow
+                    border: isMe ? 'none' : '1px solid rgba(0,0,0,0.03)' // Subtle border for received
                   }}
                 >
-                  <Typography variant="body1">{msg.message}</Typography>
+                  <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
+                    {msg.message}
+                  </Typography>
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "flex-end",
                       mt: 0.5,
+                      gap: 0.5,
+                      minWidth: 60,
+                      opacity: 0.8
                     }}
                   >
                     <Typography
                       variant="caption"
-                      color="textSecondary"
-                      sx={{ mr: 0.5 }}
+                      color="inherit"
+                      sx={{ fontSize: '0.7rem' }}
                     >
                       {new Date(msg.createdAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </Typography>
-                    {isMe && (
-                      msg.pending ? (
-                        <DoneIcon sx={{ fontSize: 16, color: "gray", opacity: 0.5 }} />
+                    {isMe &&
+                      (msg.pending ? (
+                        <DoneIcon
+                          sx={{ fontSize: 14, color: "inherit", opacity: 0.7 }}
+                        />
                       ) : msg.read ? (
-                        <DoneAllIcon sx={{ fontSize: 16, color: "#34b7f1" }} />
+                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit" }} />
                       ) : msg.delivered ? (
-                        <DoneAllIcon sx={{ fontSize: 16, color: "gray" }} />
+                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.7 }} />
                       ) : (
-                        <DoneIcon sx={{ fontSize: 16, color: "gray" }} />
-                      )
-                    )}
-
+                        <DoneIcon sx={{ fontSize: 14, color: "inherit" }} />
+                      ))}
                   </Box>
                 </Paper>
               </ListItem>
@@ -290,17 +374,28 @@ export default function MessageWindow() {
       {/* Input */}
       <Box
         sx={{
-          p: 2,
-          bgcolor: "background.paper",
-          borderTop: "1px solid #e0e0e0",
+          p: 3,
+          bgcolor: "transparent",
+          position: 'relative',
+          zIndex: 2
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          bgcolor: 'rgba(255,255,255,0.8)', // Slightly less opaque
+          backdropFilter: 'blur(10px)',
+          p: 1,
+          borderRadius: '24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.05)', // Softer shadow
+          border: '1px solid rgba(255,255,255,0.4)'
+        }}>
           <TextField
             fullWidth
             placeholder="Type a message..."
-            variant="outlined"
-            size="small"
+            variant="standard"
+            InputProps={{ disableUnderline: true }}
             value={input}
             onChange={handleTyping}
             onKeyDown={(e) => {
@@ -309,14 +404,26 @@ export default function MessageWindow() {
                 handleSend();
               }
             }}
-            sx={{ mr: 1 }}
+            sx={{
+              px: 2,
+              '& input': { fontSize: '0.95rem' }
+            }}
           />
           <IconButton
-            color="primary"
             onClick={handleSend}
             disabled={!input.trim()}
+            sx={{
+              bgcolor: input.trim() ? '#6366f1' : 'rgba(0,0,0,0.05)',
+              color: 'white',
+              '&:hover': { bgcolor: '#4f46e5' },
+              width: 44,
+              height: 44,
+              borderRadius: '18px',
+              transition: 'all 0.2s',
+              transform: input.trim() ? 'scale(1)' : 'scale(0.95)'
+            }}
           >
-            <SendIcon />
+            <SendIcon fontSize="small" />
           </IconButton>
         </Box>
       </Box>

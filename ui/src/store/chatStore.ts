@@ -4,7 +4,6 @@ import api from "../lib/api";
 import { API_ENDPOINTS } from "../lib/apiendpoint";
 import { useAuthStore } from "./authStore";
 
-
 interface Message {
   _id: string;
   sender: string;
@@ -26,6 +25,7 @@ interface Room {
 
 interface ChatState {
   rooms: Room[];
+  loadingRooms:boolean;
   activeRoomId: string | null;
   messages: Message[];
   onlineUsers: string[];
@@ -52,6 +52,7 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   rooms: [],
+  loadingRooms: false,
   activeRoomId: null,
   messages: [],
   onlineUsers: [],
@@ -63,11 +64,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   fetchRooms: async () => {
+    set({ loadingRooms: true });
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
       set({ rooms: response.data || [] });
     } catch (error) {
       console.error("Failed to fetch rooms", error);
+    }finally{
+      set({loadingRooms:false});
     }
   },
 
@@ -87,7 +91,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ loading: true, error: null, page: 1, hasMore: true });
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
-        params: { page: 1, limit: 30 }
+        params: { page: 1, limit: 30 },
       });
       const messages = response.data.messages || response.data;
       const hasMore = Array.isArray(response.data.messages)
@@ -97,7 +101,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({
         messages: Array.isArray(messages) ? messages : [],
         loading: false,
-        hasMore
+        hasMore,
       });
     } catch (error) {
       console.error("Failed to fetch messages", error);
@@ -113,7 +117,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const nextPage = page + 1;
       const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
-        params: { page: nextPage, limit: 30 }
+        params: { page: nextPage, limit: 30 },
       });
 
       const newMessages = response.data.messages || response.data;
@@ -125,7 +129,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [...newMessages, ...state.messages],
         page: nextPage,
         hasMore: stillHasMore,
-        loadingMore: false
+        loadingMore: false,
       }));
     } catch (error) {
       set({ loadingMore: false });
@@ -167,7 +171,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const { messages } = get();
       const unreadMessageIds = messages
-        .filter((m) => m.roomId === roomId && !m.read && m.sender !== useAuthStore.getState().user?.id)
+        .filter(
+          (m) =>
+            m.roomId === roomId &&
+            !m.read &&
+            m.sender !== useAuthStore.getState().user?.id,
+        )
         .map((m) => m._id);
 
       // Update local state immediately to avoid race conditions
@@ -178,14 +187,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: state.messages.map((m) =>
           m.roomId === roomId && m.sender !== useAuthStore.getState().user?.id
             ? { ...m, read: true }
-            : m
-        )
+            : m,
+        ),
       }));
 
       if (unreadMessageIds.length > 0) {
         await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
           messageIds: unreadMessageIds,
-          roomId
+          roomId,
         });
       } else {
         await api.put(API_ENDPOINTS.CHAT.READ(roomId));
@@ -197,7 +206,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   deleteRoom: async (roomId) => {
     try {
-      await api.delete(API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(":roomId", roomId));
+      await api.delete(
+        API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(":roomId", roomId),
+      );
       set((state) => ({
         rooms: state.rooms.filter((r) => r._id !== roomId),
         activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
@@ -224,7 +235,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: state.messages.map((m) => (m.tempId === tempId ? newMsg : m)),
       };
     }),
-
 
   initSocketEvents: () => {
     const socket = getSocket();
@@ -260,30 +270,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
         let newRooms = [...state.rooms];
 
         if (roomExists) {
-          newRooms = newRooms.map((r) => {
-            if (r._id === message.roomId) {
-              const isMe = message.sender === currentUserId;
-              const isRoomActive = message.roomId === activeRoomId;
+          newRooms = newRooms
+            .map((r) => {
+              if (r._id === message.roomId) {
+                const isMe = message.sender === currentUserId;
+                const isRoomActive = message.roomId === activeRoomId;
 
-              return {
-                ...r,
-                lastMessage: message,
-                unreadCount: (isMe || isRoomActive)
-                  ? (r.unreadCount || 0)
-                  : (r.unreadCount || 0) + 1,
-              };
-            }
-            return r;
-          }).sort((a, b) => {
-            if (a._id === message.roomId) return -1;
-            if (b._id === message.roomId) return 1;
-            return 0;
-          });
+                return {
+                  ...r,
+                  lastMessage: message,
+                  unreadCount:
+                    isMe || isRoomActive
+                      ? r.unreadCount || 0
+                      : (r.unreadCount || 0) + 1,
+                };
+              }
+              return r;
+            })
+            .sort((a, b) => {
+              if (a._id === message.roomId) return -1;
+              if (b._id === message.roomId) return 1;
+              return 0;
+            });
         }
 
         return {
           messages: newMessages,
-          rooms: newRooms
+          rooms: newRooms,
         };
       });
 
@@ -302,13 +315,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socket.on("message_delivered", ({ messageId, roomId }) => {
       set((state) => ({
         messages: state.messages.map((m) =>
-          m._id === messageId ? { ...m, delivered: true } : m
+          m._id === messageId ? { ...m, delivered: true } : m,
         ),
         rooms: state.rooms.map((r) =>
           r._id === roomId && r.lastMessage?._id === messageId
             ? { ...r, lastMessage: { ...r.lastMessage!, delivered: true } }
-            : r
-        )
+            : r,
+        ),
       }));
     });
 
@@ -318,10 +331,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messageIds.includes(msg._id) ? { ...msg, read: true } : msg,
         ),
         rooms: state.rooms.map((r) =>
-          r._id === roomId && r.lastMessage?._id && messageIds.includes(r.lastMessage._id)
+          r._id === roomId &&
+          r.lastMessage?._id &&
+          messageIds.includes(r.lastMessage._id)
             ? { ...r, lastMessage: { ...r.lastMessage!, read: true } }
-            : r
-        )
+            : r,
+        ),
       }));
     });
 
@@ -329,13 +344,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (readBy !== useAuthStore.getState().user?.id) {
         set((state) => ({
           messages: state.messages.map((m) =>
-            m.roomId === roomId ? { ...m, read: true } : m
+            m.roomId === roomId ? { ...m, read: true } : m,
           ),
           rooms: state.rooms.map((r) =>
             r._id === roomId
-              ? { ...r, lastMessage: r.lastMessage ? { ...r.lastMessage, read: true } : undefined }
-              : r
-          )
+              ? {
+                  ...r,
+                  lastMessage: r.lastMessage
+                    ? { ...r.lastMessage, read: true }
+                    : undefined,
+                }
+              : r,
+          ),
         }));
       }
     });
