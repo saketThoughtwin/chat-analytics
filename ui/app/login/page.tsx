@@ -15,6 +15,14 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const setAuth = useAuthStore((state) => state.setAuth);
+    const token = useAuthStore((state) => state.token);
+    const _hasHydrated = useAuthStore((state) => state._hasHydrated);
+
+    React.useEffect(() => {
+        if (_hasHydrated && token) {
+            router.push('/chat');
+        }
+    }, [token, _hasHydrated, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
