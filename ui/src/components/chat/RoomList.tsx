@@ -45,6 +45,7 @@ export default function RoomList() {
     typingUsers,
     deleteRoom,
     loadingRooms,
+    reset,
   } = useChatStore();
   const { user: currentUser, logout } = useAuthStore();
   const router = useRouter();
@@ -65,6 +66,7 @@ export default function RoomList() {
   }, [fetchRooms]);
 
   const handleLogout = () => {
+    reset(); // Clear chat state (active room, messages, etc.)
     logout();
     router.push("/login");
   };
@@ -364,7 +366,7 @@ export default function RoomList() {
                         sx={{ maxWidth: '85%', opacity: 0.8 }}
                       >
                         {typingUsers[room._id]?.length > 0
-                          ? <span style={{ color: '#6366f1', fontWeight: 'bold' }}>typing...</span>
+                          ? <span style={{ color: '#22c55e', fontWeight: 'bold' }}>typing...</span>
                           : room.lastMessage?.message || "No messages yet"}
                       </Typography>
                     }

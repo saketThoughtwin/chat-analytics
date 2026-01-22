@@ -25,7 +25,7 @@ interface Room {
 
 interface ChatState {
   rooms: Room[];
-  loadingRooms:boolean;
+  loadingRooms: boolean;
   activeRoomId: string | null;
   messages: Message[];
   onlineUsers: string[];
@@ -48,6 +48,7 @@ interface ChatState {
 
   // Socket event handlers
   initSocketEvents: () => void;
+  reset: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -67,11 +68,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ loadingRooms: true });
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
-      set({ rooms: response.data || [] });
+      const rooms = response.data || [];
+      set({ rooms });
+
+      // Join all rooms to receive real-time updates (typing, etc.)
+      const socket = getSocket();
+      rooms.forEach((room: Room) => {
+        socket.emit("join_room", room._id);
+      });
     } catch (error) {
       console.error("Failed to fetch rooms", error);
-    }finally{
-      set({loadingRooms:false});
+    } finally {
+      set({ loadingRooms: false });
     }
   },
 
@@ -332,8 +340,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ),
         rooms: state.rooms.map((r) =>
           r._id === roomId &&
-          r.lastMessage?._id &&
-          messageIds.includes(r.lastMessage._id)
+            r.lastMessage?._id &&
+            messageIds.includes(r.lastMessage._id)
             ? { ...r, lastMessage: { ...r.lastMessage!, read: true } }
             : r,
         ),
@@ -349,11 +357,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           rooms: state.rooms.map((r) =>
             r._id === roomId
               ? {
-                  ...r,
-                  lastMessage: r.lastMessage
-                    ? { ...r.lastMessage, read: true }
-                    : undefined,
-                }
+                ...r,
+                lastMessage: r.lastMessage
+                  ? { ...r.lastMessage, read: true }
+                  : undefined,
+              }
               : r,
           ),
         }));
@@ -377,13 +385,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on("typing", ({ from, roomId }) => {
+      console.log("Socket: typing event received", { from, roomId });
       set((state) => {
         const roomTyping = state.typingUsers[roomId] || [];
+        const newTypingUsers = {
+          ...state.typingUsers,
+          [roomId]: [...new Set([...roomTyping, from])],
+        };
+        console.log("Store: updated typingUsers", newTypingUsers);
         return {
-          typingUsers: {
-            ...state.typingUsers,
-            [roomId]: [...new Set([...roomTyping, from])],
-          },
+          typingUsers: newTypingUsers,
         };
       });
     });
@@ -398,6 +409,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
           },
         };
       });
+    });
+
+  },
+  reset: () => {
+    set({
+      rooms: [],
+      loadingRooms: false,
+      activeRoomId: null,
+      messages: [],
+      onlineUsers: [],
+      typingUsers: {},
+      loading: false,
+      loadingMore: false,
+      hasMore: true,
+      page: 1,
+      error: null,
     });
   },
 }));
