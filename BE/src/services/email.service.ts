@@ -63,14 +63,16 @@ class EmailService {
                         });
                     }),
                     new Promise<string>((_, reject) =>
-                        setTimeout(() => reject(new Error("OAuth2 Access Token Timeout")), 15000)
+                        setTimeout(() => reject(new Error("OAuth2 Access Token Timeout")), 20000)
                     )
                 ]);
 
+                console.log("📧 Access Token obtained successfully");
+
                 this.transporter = nodemailer.createTransport({
                     host: "smtp.gmail.com",
-                    port: 465,
-                    secure: true,
+                    port: 587,
+                    secure: false, // Use STARTTLS
                     auth: {
                         type: "OAuth2",
                         user: credentials.user,
@@ -80,14 +82,17 @@ class EmailService {
                         refreshToken: credentials.refreshToken,
                     },
                     debug: true,
-                    logger: true
+                    logger: true,
+                    tls: {
+                        rejectUnauthorized: false // Helps in some cloud environments
+                    }
                 });
 
-                console.log("📧 Verifying Nodemailer Transporter (30s timeout)...");
+                console.log("📧 Verifying Nodemailer Transporter (Port 587, 40s timeout)...");
                 await Promise.race([
                     this.transporter.verify(),
                     new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error("Transporter Verification Timeout")), 30000)
+                        setTimeout(() => reject(new Error("Transporter Verification Timeout")), 40000)
                     )
                 ]);
 
