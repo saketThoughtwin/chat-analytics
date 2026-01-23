@@ -15,21 +15,6 @@ class UserController {
       throw new ApiError(400, "Email and Name are required");
     }
 
-    // Check if user already exists
-    const existingUser = await userService.searchUsers(email, "");
-    // searchUsers returns array, we need to check if any user has this email exactly
-    // But wait, searchUsers excludes current user. Let's use a better check.
-    // We can use the repository directly or add a method to service.
-    // For now, let's assume if they can register, they don't exist.
-    // Actually, userService.register checks existence. We should check it here too to fail early.
-    // Let's try to register blindly? No, we need to send OTP first.
-
-    // Let's add a check in service or just use the one in register later.
-    // Ideally we check existence here.
-    // Let's use userService to check existence if possible, or just proceed.
-    // The user requirement says "when user is signup then a new page open for verify".
-    // So we send OTP first.
-
     const otp = await otpService.generateOTP(email);
     await emailService.sendOTP(email, otp);
 
@@ -49,7 +34,7 @@ class UserController {
 
     const user = await userService.register(name, email, password);
 
-    res.status(201).json({ success: true, data: user, messgae: "user registerd successfully" });
+    res.status(201).json({ success: true, data: user, message: "User registered successfully" });
   }
   static async login(req: Request, res: Response) {
     const { email, password } = req.body;

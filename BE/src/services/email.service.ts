@@ -1,16 +1,17 @@
 import nodemailer from "nodemailer";
 import { google } from "googleapis";
+import { ApiError } from "@utils/ApiError";
 
 const OAuth2 = google.auth.OAuth2;
 
 class EmailService {
-    private transporter!: nodemailer.Transporter;
+    private transporter: nodemailer.Transporter | null = null;
 
     constructor() {
-        this.createTransporter();
+        this.initializeTransporter();
     }
 
-    private async createTransporter() {
+    private async initializeTransporter() {
         try {
             const oauth2Client = new OAuth2(
                 process.env.CLIENT_ID,
@@ -25,7 +26,8 @@ class EmailService {
             const accessToken = await new Promise<string>((resolve, reject) => {
                 oauth2Client.getAccessToken((err, token) => {
                     if (err) {
-                        reject("Failed to create access token : " + err);
+                        console.error("Failed to create access token:", err);
+                        reject(err);
                     }
                     resolve(token || "");
                 });
@@ -42,14 +44,24 @@ class EmailService {
                     refreshToken: process.env.REFRESH_TOKEN,
                 },
             });
+
+            // Verify the transporter
+            await this.transporter.verify();
+            console.log("✅ Email Transporter is ready");
         } catch (error) {
-            console.error("Email Service Error:", error);
+            console.error("❌ Email Service Initialization Error:", error);
+            this.transporter = null;
         }
     }
 
     async sendOTP(to: string, otp: string) {
         if (!this.transporter) {
-            await this.createTransporter();
+            console.log("Transporter not initialized, attempting to re-initialize...");
+            await this.initializeTransporter();
+        }
+
+        if (!this.transporter) {
+            throw new ApiError(500, "Email service is currently unavailable. Please try again later.");
         }
 
         const mailOptions = {
@@ -74,7 +86,7 @@ class EmailService {
             console.log(`OTP sent to ${to}`);
         } catch (error) {
             console.error("Error sending email:", error);
-            throw new Error("Failed to send verification email");
+            throw new ApiError(500, "Failed to send verification email. Please check your email address and try again.");
         }
     }
 }
