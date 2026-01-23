@@ -23,8 +23,10 @@ class EmailService {
 
             console.log(`📧 Attempting to send OTP to: ${to}`);
 
+            const fromEmail = process.env.MAIL_FROM || 'Chat Analytics <onboarding@resend.dev>';
+
             const { data, error } = await this.resend.emails.send({
-                from: 'Chat Analytics <onboarding@resend.dev>',
+                from: fromEmail,
                 to: [to],
                 subject: 'Your Verification Code',
                 html: `
