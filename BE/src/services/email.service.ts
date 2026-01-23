@@ -4,7 +4,7 @@ import { google } from "googleapis";
 const OAuth2 = google.auth.OAuth2;
 
 class EmailService {
-    private transporter: nodemailer.Transporter;
+    private transporter!: nodemailer.Transporter;
 
     constructor() {
         this.createTransporter();
