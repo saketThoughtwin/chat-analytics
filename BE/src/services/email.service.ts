@@ -1,104 +1,63 @@
-import nodemailer from "nodemailer";
-import { google } from "googleapis";
+import { Resend } from 'resend';
 import { ApiError } from "@utils/ApiError";
 
-const OAuth2 = google.auth.OAuth2;
-
 class EmailService {
-    private transporter: nodemailer.Transporter | null = null;
-    private initializationPromise: Promise<void> | null = null;
+    private resend: Resend | null = null;
 
     constructor() {
-        this.initializeTransporter().catch(err => {
-            console.error("❌ Initial Email Service Init Failed:", err);
-        });
-    }
-
-    private async initializeTransporter(): Promise<void> {
-        if (this.initializationPromise) return this.initializationPromise;
-
-        this.initializationPromise = (async () => {
-            try {
-                console.log("📧 Initializing Email Transporter...");
-
-                const {
-                    MAIL_USER,
-                    CLIENT_ID,
-                    CLIENT_SECRET,
-                    REFRESH_TOKEN
-                } = process.env;
-
-                if (!MAIL_USER || !CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
-                    throw new Error("Missing email environment variables");
-                }
-
-                const oauth2Client = new OAuth2(
-                    CLIENT_ID,
-                    CLIENT_SECRET,
-                    "https://developers.google.com/oauthplayground"
-                );
-
-                oauth2Client.setCredentials({
-                    refresh_token: REFRESH_TOKEN,
-                });
-
-                const accessToken = await oauth2Client.getAccessToken();
-
-                this.transporter = nodemailer.createTransport({
-                    host: "smtp.gmail.com",
-                    port: 587,
-                    secure: false, // Use STARTTLS for port 587
-                    auth: {
-                        type: "OAuth2",
-                        user: MAIL_USER,
-                        clientId: CLIENT_ID,
-                        clientSecret: CLIENT_SECRET,
-                        refreshToken: REFRESH_TOKEN,
-                        accessToken: accessToken.token!,
-                    },
-                    connectionTimeout: 20000, // 20 seconds
-                    greetingTimeout: 20000,
-                    socketTimeout: 20000,
-                });
-
-                console.log("✅ Email transporter initialized");
-            } catch (err) {
-                console.error("❌ Email initialization failed:", err);
-                this.transporter = null;
-                throw err;
-            } finally {
-                this.initializationPromise = null;
-            }
-        })();
-
-        return this.initializationPromise;
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey) {
+            console.error("❌ RESEND_API_KEY is missing in environment variables");
+        } else {
+            this.resend = new Resend(apiKey);
+            console.log("✅ Resend Email Service initialized");
+        }
     }
 
     async sendOTP(to: string, otp: string) {
-        if (!this.transporter) {
-            await this.initializeTransporter();
+        try {
+            if (!this.resend) {
+                console.error("❌ Cannot send email: Resend not initialized (missing API Key)");
+                throw new ApiError(500, "Email service configuration error");
+            }
+
+            console.log(`📧 Attempting to send OTP to: ${to}`);
+
+            const { data, error } = await this.resend.emails.send({
+                from: 'Chat Analytics <onboarding@resend.dev>',
+                to: [to],
+                subject: 'Your Verification Code',
+                html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+            <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+              <h2 style="color: white; margin: 0;">Verify Your Email</h2>
+            </div>
+            <div style="padding: 30px; background-color: white;">
+              <p style="color: #374151; font-size: 16px;">Thank you for signing up! Please use the following code to verify your email address:</p>
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 25px 0; border: 1px dashed #9ca3af;">
+                <h1 style="color: #111827; letter-spacing: 8px; margin: 0; font-size: 36px;">${otp}</h1>
+              </div>
+              <p style="color: #6b7280; font-size: 14px;">This code will expire in <b>5 minutes</b>.</p>
+              <p style="color: #9ca3af; font-size: 12px; margin-top: 30px; border-top: 1px solid #f3f4f6; padding-top: 20px;">
+                If you didn't request this, please ignore this email.
+              </p>
+            </div>
+          </div>
+        `,
+            });
+
+            if (error) {
+                console.error("❌ Resend API Error:", error);
+                throw new ApiError(500, `Failed to send email: ${error.message}`);
+            }
+
+            console.log(`✅ OTP successfully sent to ${to}. Resend ID: ${data?.id}`);
+            return data;
+        } catch (error: any) {
+            console.error("❌ Email Service Exception:", error.message || error);
+            if (error instanceof ApiError) throw error;
+            throw new ApiError(500, "An unexpected error occurred while sending the verification email");
         }
-
-        if (!this.transporter) {
-            throw new ApiError(500, "Email service unavailable");
-        }
-
-        const mailOptions = {
-            from: `"Chat Analytics" <${process.env.MAIL_USER}>`,
-            to,
-            subject: "Your Verification Code",
-            html: `
-        <div style="font-family: Arial;">
-          <h2>Verify Your Email</h2>
-          <p>Your OTP is:</p>
-          <h1 style="letter-spacing:4px">${otp}</h1>
-          <p>This code expires in 5 minutes.</p>
-        </div>
-      `,
-        };
-
-        await this.transporter.sendMail(mailOptions);
-        console.log(`✅ OTP sent to ${to}`);
     }
 }
 
