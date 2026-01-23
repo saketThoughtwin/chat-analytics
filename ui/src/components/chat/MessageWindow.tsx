@@ -50,7 +50,7 @@ export default function MessageWindow() {
     (p: any) => (p._id || p) !== currentUser?.id,
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -61,10 +61,7 @@ export default function MessageWindow() {
     }
 
     if (shouldScrollRef.current) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth",
-      });
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
 
@@ -197,6 +194,7 @@ export default function MessageWindow() {
         display: "flex",
         flexDirection: "column",
         position: "relative",
+        overflow: "hidden",
       }}
     >
       {/* Initial Loading Loader */}

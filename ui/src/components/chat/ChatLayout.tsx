@@ -42,7 +42,8 @@ export default function ChatLayout() {
 
     return (
         <Box sx={{
-            height: '100vh',
+            height: '100dvh',
+            overflow: 'hidden',
             p: { xs: 0, md: 3 },
             // Dimmer, softer background (Slate/Blue-ish gray)
             background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',

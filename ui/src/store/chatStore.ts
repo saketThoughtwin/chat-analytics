@@ -30,6 +30,7 @@ interface ChatState {
   messages: Message[];
   onlineUsers: string[];
   typingUsers: Record<string, string[]>; // roomId -> userIds
+  messagesCache: Record<string, Message[]>; // roomId -> messages
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -58,6 +59,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   onlineUsers: [],
   typingUsers: {},
+  messagesCache: {},
   loading: false,
   loadingMore: false,
   hasMore: true,
@@ -65,7 +67,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   fetchRooms: async () => {
-    set({ loadingRooms: true });
+    // Only show loading if we don't have any rooms yet (stale-while-revalidate)
+    if (get().rooms.length === 0) {
+      set({ loadingRooms: true });
+    }
+
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
       const rooms = response.data || [];
@@ -84,19 +90,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setActiveRoom: (roomId) => {
-    set({ activeRoomId: roomId });
     if (roomId) {
+      const cachedMessages = get().messagesCache[roomId];
+      // Atomically set active room and messages (from cache or empty)
+      // This prevents "ghost" messages from the previous room
+      set({
+        activeRoomId: roomId,
+        messages: cachedMessages || [],
+        loading: !cachedMessages, // Only show loader if we don't have cache
+        error: null,
+        page: 1,
+        hasMore: true
+      });
+
       get().fetchMessages(roomId);
       const socket = getSocket();
       socket.emit("join_room", roomId);
       get().markAsRead(roomId);
     } else {
-      set({ messages: [] });
+      set({ activeRoomId: null, messages: [] });
     }
   },
 
   fetchMessages: async (roomId) => {
-    set({ loading: true, error: null, page: 1, hasMore: true });
+    // Check cache first
+    const cachedMessages = get().messagesCache[roomId];
+    if (cachedMessages) {
+      set({
+        messages: cachedMessages,
+        loading: false,
+        error: null,
+        page: 1,
+        hasMore: true
+      });
+    } else {
+      // If not in cache, clear messages to avoid showing previous room's messages
+      set({ messages: [], loading: true, error: null, page: 1, hasMore: true });
+    }
+
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
         params: { page: 1, limit: 30 },
@@ -106,14 +137,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ? response.data.page < response.data.pages
         : messages.length === 30;
 
-      set({
-        messages: Array.isArray(messages) ? messages : [],
+      const newMessages = Array.isArray(messages) ? messages : [];
+
+      set((state) => ({
+        messages: newMessages,
+        messagesCache: {
+          ...state.messagesCache,
+          [roomId]: newMessages
+        },
         loading: false,
         hasMore,
-      });
+      }));
     } catch (error) {
       console.error("Failed to fetch messages", error);
-      set({ error: "Failed to fetch messages", loading: false });
+      // If we have cache, we might want to keep showing it but maybe show an error toast?
+      // For now, if we have cache, we just keep it. If not, we show error.
+      if (!get().messagesCache[roomId]) {
+        set({ error: "Failed to fetch messages", loading: false });
+      }
     }
   },
 
@@ -133,12 +174,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ? response.data.page < response.data.pages
         : newMessages.length === 30;
 
-      set((state) => ({
-        messages: [...newMessages, ...state.messages],
-        page: nextPage,
-        hasMore: stillHasMore,
-        loadingMore: false,
-      }));
+      set((state) => {
+        const updatedMessages = [...newMessages, ...state.messages];
+        return {
+          messages: updatedMessages,
+          messagesCache: {
+            ...state.messagesCache,
+            [roomId]: updatedMessages
+          },
+          page: nextPage,
+          hasMore: stillHasMore,
+          loadingMore: false,
+        };
+      });
     } catch (error) {
       set({ loadingMore: false });
       console.error("Failed to load more messages", error);
@@ -227,20 +275,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   addLocalMessage: (msg) =>
-    set((state) => ({
-      messages: [...state.messages, msg],
-    })),
+    set((state) => {
+      const newMessages = [...state.messages, msg];
+      // Update cache for the room of the message
+      const roomId = msg.roomId;
+      const roomCache = state.messagesCache[roomId] || [];
+
+      return {
+        messages: newMessages,
+        messagesCache: {
+          ...state.messagesCache,
+          [roomId]: [...roomCache, msg]
+        }
+      };
+    }),
   replaceMessage: (tempId, newMsg) =>
     set((state) => {
       const messageExists = state.messages.some((m) => m._id === newMsg._id);
+      let newMessages;
+
       if (messageExists) {
         // If the message already exists (e.g. from socket), just remove the temp one
-        return {
-          messages: state.messages.filter((m) => m.tempId !== tempId),
-        };
+        newMessages = state.messages.filter((m) => m.tempId !== tempId);
+      } else {
+        newMessages = state.messages.map((m) => (m.tempId === tempId ? newMsg : m));
       }
+
+      // Update cache
+      const roomId = newMsg.roomId;
+      // We need to do the same operation on the cache
+      const roomCache = state.messagesCache[roomId] || [];
+      let newRoomCache;
+
+      const cacheMessageExists = roomCache.some((m) => m._id === newMsg._id);
+      if (cacheMessageExists) {
+        newRoomCache = roomCache.filter((m) => m.tempId !== tempId);
+      } else {
+        newRoomCache = roomCache.map((m) => (m.tempId === tempId ? newMsg : m));
+      }
+
       return {
-        messages: state.messages.map((m) => (m.tempId === tempId ? newMsg : m)),
+        messages: newMessages,
+        messagesCache: {
+          ...state.messagesCache,
+          [roomId]: newRoomCache
+        }
       };
     }),
 
@@ -302,8 +381,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
         }
 
+        // Update cache as well
+        const cacheForRoom = state.messagesCache[message.roomId] || [];
+        // Check for duplicates in cache
+        const isDuplicateInCache = cacheForRoom.some((m) => m._id === message._id);
+        let newCacheForRoom = [...cacheForRoom];
+
+        if (!isDuplicateInCache) {
+          // Handle pending in cache
+          const pendingIndexCache = cacheForRoom.findIndex(
+            (m) =>
+              m.pending &&
+              m.message === message.message &&
+              m.sender === message.sender
+          );
+          if (pendingIndexCache !== -1) {
+            newCacheForRoom[pendingIndexCache] = message;
+          } else {
+            newCacheForRoom.push(message);
+          }
+        }
+
         return {
           messages: newMessages,
+          messagesCache: {
+            ...state.messagesCache,
+            [message.roomId]: newCacheForRoom
+          },
           rooms: newRooms,
         };
       });
@@ -425,6 +529,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       hasMore: true,
       page: 1,
       error: null,
+      messagesCache: {},
     });
   },
 }));
