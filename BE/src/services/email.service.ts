@@ -6,58 +6,90 @@ const OAuth2 = google.auth.OAuth2;
 
 class EmailService {
     private transporter: nodemailer.Transporter | null = null;
+    private initializationPromise: Promise<void> | null = null;
 
     constructor() {
-        this.initializeTransporter();
+        this.initializeTransporter().catch(err => {
+            console.error("Initial Email Service Initialization Failed:", err);
+        });
     }
 
-    private async initializeTransporter() {
-        try {
-            const oauth2Client = new OAuth2(
-                process.env.CLIENT_ID,
-                process.env.CLIENT_SECRET,
-                "https://developers.google.com/oauthplayground"
-            );
-
-            oauth2Client.setCredentials({
-                refresh_token: process.env.REFRESH_TOKEN,
-            });
-
-            const accessToken = await new Promise<string>((resolve, reject) => {
-                oauth2Client.getAccessToken((err, token) => {
-                    if (err) {
-                        console.error("Failed to create access token:", err);
-                        reject(err);
-                    }
-                    resolve(token || "");
-                });
-            });
-
-            this.transporter = nodemailer.createTransport({
-                service: "gmail",
-                auth: {
-                    type: "OAuth2",
-                    user: process.env.MAIL_USER,
-                    accessToken,
-                    clientId: process.env.CLIENT_ID,
-                    clientSecret: process.env.CLIENT_SECRET,
-                    refreshToken: process.env.REFRESH_TOKEN,
-                },
-            });
-
-            // Verify the transporter
-            await this.transporter.verify();
-            console.log("✅ Email Transporter is ready");
-        } catch (error) {
-            console.error("❌ Email Service Initialization Error:", error);
-            this.transporter = null;
+    private async initializeTransporter(): Promise<void> {
+        if (this.initializationPromise) {
+            return this.initializationPromise;
         }
+
+        this.initializationPromise = (async () => {
+            try {
+                console.log("📧 Starting Email Transporter initialization...");
+                const oauth2Client = new OAuth2(
+                    process.env.CLIENT_ID,
+                    process.env.CLIENT_SECRET,
+                    "https://developers.google.com/oauthplayground"
+                );
+
+                oauth2Client.setCredentials({
+                    refresh_token: process.env.REFRESH_TOKEN,
+                });
+
+                const accessToken = await Promise.race([
+                    new Promise<string>((resolve, reject) => {
+                        oauth2Client.getAccessToken((err, token) => {
+                            if (err) {
+                                console.error("Failed to create access token:", err);
+                                reject(err);
+                            }
+                            resolve(token || "");
+                        });
+                    }),
+                    new Promise<string>((_, reject) =>
+                        setTimeout(() => reject(new Error("OAuth2 Access Token Timeout")), 10000)
+                    )
+                ]);
+
+                this.transporter = nodemailer.createTransport({
+                    service: "gmail",
+                    auth: {
+                        type: "OAuth2",
+                        user: process.env.MAIL_USER,
+                        accessToken,
+                        clientId: process.env.CLIENT_ID,
+                        clientSecret: process.env.CLIENT_SECRET,
+                        refreshToken: process.env.REFRESH_TOKEN,
+                    },
+                });
+
+                // Verify the transporter with a timeout
+                await Promise.race([
+                    this.transporter.verify(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error("Transporter Verification Timeout")), 10000)
+                    )
+                ]);
+
+                console.log("✅ Email Transporter is ready");
+            } catch (error) {
+                console.error("❌ Email Service Initialization Error:", error);
+                this.transporter = null;
+                throw error;
+            } finally {
+                this.initializationPromise = null;
+            }
+        })();
+
+        return this.initializationPromise;
     }
 
     async sendOTP(to: string, otp: string) {
+        console.log(`📧 Attempting to send OTP to ${to}...`);
+
         if (!this.transporter) {
-            console.log("Transporter not initialized, attempting to re-initialize...");
-            await this.initializeTransporter();
+            console.log("Transporter not initialized, attempting to initialize...");
+            try {
+                await this.initializeTransporter();
+            } catch (error) {
+                throw new ApiError(500, "Email service initialization failed. Please try again later.");
+            }
         }
 
         if (!this.transporter) {
@@ -83,9 +115,9 @@ class EmailService {
 
         try {
             await this.transporter.sendMail(mailOptions);
-            console.log(`OTP sent to ${to}`);
+            console.log(`✅ OTP sent to ${to}`);
         } catch (error) {
-            console.error("Error sending email:", error);
+            console.error("❌ Error sending email:", error);
             throw new ApiError(500, "Failed to send verification email. Please check your email address and try again.");
         }
     }

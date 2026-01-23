@@ -11,6 +11,7 @@ import emailService from "@services/email.service";
 class UserController {
   static async sendOTP(req: Request, res: Response) {
     const { email, name } = req.body;
+    console.log(`📩 Received send-otp request for ${email}`);
     if (!email || !name) {
       throw new ApiError(400, "Email and Name are required");
     }
@@ -18,6 +19,7 @@ class UserController {
     const otp = await otpService.generateOTP(email);
     await emailService.sendOTP(email, otp);
 
+    console.log(`✅ send-otp request for ${email} completed`);
     res.status(200).json({ success: true, message: "OTP sent successfully" });
   }
 
