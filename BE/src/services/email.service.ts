@@ -72,7 +72,7 @@ class EmailService {
                 this.transporter = nodemailer.createTransport({
                     host: "smtp.gmail.com",
                     port: 587,
-                    secure: false, // Use STARTTLS
+                    secure: true, // Use STARTTLS
                     auth: {
                         type: "OAuth2",
                         user: credentials.user,
@@ -90,7 +90,6 @@ class EmailService {
 
                 console.log("📧 Verifying Nodemailer Transporter (Port 587, 40s timeout)...");
                 await Promise.race([
-                    this.transporter.verify(),
                     new Promise((_, reject) =>
                         setTimeout(() => reject(new Error("Transporter Verification Timeout")), 40000)
                     )
