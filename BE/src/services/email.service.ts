@@ -16,34 +16,54 @@ class EmailService {
 
     private async initializeTransporter(): Promise<void> {
         if (this.initializationPromise) {
+            console.log("📧 Initialization already in progress, waiting...");
             return this.initializationPromise;
         }
 
         this.initializationPromise = (async () => {
             try {
                 console.log("📧 Starting Email Transporter initialization...");
+
+                const credentials = {
+                    user: process.env.MAIL_USER,
+                    clientId: process.env.CLIENT_ID,
+                    clientSecret: process.env.CLIENT_SECRET,
+                    refreshToken: process.env.REFRESH_TOKEN,
+                };
+
+                console.log("📧 Checking Environment Variables in EmailService:");
+                console.log(`   - MAIL_USER: ${credentials.user ? "✅ Present" : "❌ Missing"}`);
+                console.log(`   - CLIENT_ID: ${credentials.clientId ? "✅ Present" : "❌ Missing"}`);
+                console.log(`   - CLIENT_SECRET: ${credentials.clientSecret ? "✅ Present" : "❌ Missing"}`);
+                console.log(`   - REFRESH_TOKEN: ${credentials.refreshToken ? "✅ Present" : "❌ Missing"}`);
+
+                if (!credentials.user || !credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
+                    throw new Error("Missing required email environment variables");
+                }
+
                 const oauth2Client = new OAuth2(
-                    process.env.CLIENT_ID,
-                    process.env.CLIENT_SECRET,
+                    credentials.clientId,
+                    credentials.clientSecret,
                     "https://developers.google.com/oauthplayground"
                 );
 
                 oauth2Client.setCredentials({
-                    refresh_token: process.env.REFRESH_TOKEN,
+                    refresh_token: credentials.refreshToken,
                 });
 
+                console.log("📧 Requesting OAuth2 Access Token...");
                 const accessToken = await Promise.race([
                     new Promise<string>((resolve, reject) => {
                         oauth2Client.getAccessToken((err, token) => {
                             if (err) {
-                                console.error("Failed to create access token:", err);
+                                console.error("📧 Failed to create access token:", err);
                                 reject(err);
                             }
                             resolve(token || "");
                         });
                     }),
                     new Promise<string>((_, reject) =>
-                        setTimeout(() => reject(new Error("OAuth2 Access Token Timeout")), 10000)
+                        setTimeout(() => reject(new Error("OAuth2 Access Token Timeout")), 15000)
                     )
                 ]);
 
@@ -51,25 +71,29 @@ class EmailService {
                     service: "gmail",
                     auth: {
                         type: "OAuth2",
-                        user: process.env.MAIL_USER,
+                        user: credentials.user,
                         accessToken,
-                        clientId: process.env.CLIENT_ID,
-                        clientSecret: process.env.CLIENT_SECRET,
-                        refreshToken: process.env.REFRESH_TOKEN,
+                        clientId: credentials.clientId,
+                        clientSecret: credentials.clientSecret,
+                        refreshToken: credentials.refreshToken,
                     },
                 });
 
-                // Verify the transporter with a timeout
+                console.log("📧 Verifying Nodemailer Transporter...");
                 await Promise.race([
                     this.transporter.verify(),
                     new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error("Transporter Verification Timeout")), 10000)
+                        setTimeout(() => reject(new Error("Transporter Verification Timeout")), 15000)
                     )
                 ]);
 
                 console.log("✅ Email Transporter is ready");
-            } catch (error) {
-                console.error("❌ Email Service Initialization Error:", error);
+            } catch (error: any) {
+                console.error("❌ Email Service Initialization Error Details:", {
+                    message: error.message,
+                    code: error.code,
+                    response: error.response?.data
+                });
                 this.transporter = null;
                 throw error;
             } finally {

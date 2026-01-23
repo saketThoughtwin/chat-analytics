@@ -31,16 +31,16 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            // Register user
-            await api.post('/auth/signup', { name, email, password });
+            // Send OTP
+            await useAuthStore.getState().sendOTP(name, email);
 
-            // Auto-login after signup
-            const loginResponse = await api.post('/auth/login', { email, password });
-            const { user, token } = loginResponse.data;
-            setAuth(user, token);
-            router.push('/chat');
+            // Store data for verification step
+            useAuthStore.getState().setTempSignupData({ name, email, password });
+
+            // Redirect to verify page
+            router.push(`/verify-email?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Signup failed. Please try again.');
+            setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
         } finally {
             setLoading(false);
         }
