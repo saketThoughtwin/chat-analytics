@@ -1,43 +1,18 @@
 import nodemailer from "nodemailer";
-import { google } from "googleapis";
 import { ApiError } from "@utils/ApiError";
 
-const OAuth2 = google.auth.OAuth2;
-
 class EmailService {
-    private async createTransporter() {
-        const oauth2Client = new OAuth2(
-            process.env.CLIENT_ID,
-            process.env.CLIENT_SECRET,
-            "https://developers.google.com/oauthplayground"
-        );
-
-        oauth2Client.setCredentials({
-            refresh_token: process.env.REFRESH_TOKEN,
-        });
-
+    private createTransporter() {
         try {
-            const accessToken = await new Promise<string>((resolve, reject) => {
-                oauth2Client.getAccessToken((err, token) => {
-                    if (err) {
-                        console.error("❌ Failed to create access token:", err);
-                        reject("Failed to create access token");
-                    }
-                    resolve(token || "");
-                });
-            });
-
             return nodemailer.createTransport({
-                service: "gmail",
+                host: process.env.EMAIL_HOST,
+                port: parseInt(process.env.EMAIL_PORT || "587"),
+                secure: process.env.EMAIL_PORT === "465", // true for 465, false for other ports
                 auth: {
-                    type: "OAuth2",
-                    user: process.env.MAIL_USER,
-                    accessToken,
-                    clientId: process.env.CLIENT_ID,
-                    clientSecret: process.env.CLIENT_SECRET,
-                    refreshToken: process.env.REFRESH_TOKEN,
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
                 },
-            } as any);
+            });
         } catch (error) {
             console.error("❌ Transporter creation error:", error);
             throw new ApiError(500, "Failed to initialize email service");
@@ -46,11 +21,11 @@ class EmailService {
 
     async sendOTP(to: string, otp: string) {
         try {
-            console.log(`📧 Sending OTP to ${to} via Nodemailer...`);
-            const transporter = await this.createTransporter();
+            console.log(`📧 Sending OTP to ${to} via SMTP...`);
+            const transporter = this.createTransporter();
 
             const mailOptions = {
-                from: `Chat Analytics <${process.env.MAIL_USER}>`,
+                from: `"Chat Analytics" <${process.env.EMAIL_USER}>`,
                 to: to,
                 subject: "Your Verification Code",
                 html: `
