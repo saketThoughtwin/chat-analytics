@@ -3,16 +3,45 @@ import { ApiError } from "@utils/ApiError";
 
 class EmailService {
     private createTransporter() {
+        const host = process.env.EMAIL_HOST || "";
+        const port = parseInt(process.env.EMAIL_PORT || "587");
+        const user = process.env.EMAIL_USER;
+        const pass = process.env.EMAIL_PASS;
+
+        console.log(`🛠️ Initializing SMTP Transporter: ${host}:${port} (User: ${user})`);
+
         try {
-            return nodemailer.createTransport({
-                host: process.env.EMAIL_HOST,
-                port: parseInt(process.env.EMAIL_PORT || "587"),
-                secure: process.env.EMAIL_PORT === "465", // true for 465, false for other ports
+            const transporterConfig: any = {
                 auth: {
-                    user: process.env.EMAIL_USER,
-                    pass: process.env.EMAIL_PASS,
+                    user,
+                    pass,
                 },
-            });
+                connectionTimeout: 15000, // Increased to 15s
+                greetingTimeout: 15000,
+                socketTimeout: 15000,
+                dnsTimeout: 10000,
+                debug: true,
+                logger: true,
+                tls: {
+                    // Do not fail on invalid certs (common in some hosting environments)
+                    rejectUnauthorized: false,
+                    // Force specific TLS version if needed
+                    minVersion: "TLSv1.2"
+                }
+            };
+
+            // If it's Gmail, use the built-in 'gmail' service configuration
+            // This is often more reliable than manual host/port config
+            if (host.includes("gmail.com") || user?.includes("@gmail.com")) {
+                console.log("💡 Using Gmail service preset for better reliability");
+                transporterConfig.service = "gmail";
+            } else {
+                transporterConfig.host = host;
+                transporterConfig.port = port;
+                transporterConfig.secure = port === 465;
+            }
+
+            return nodemailer.createTransport(transporterConfig);
         } catch (error) {
             console.error("❌ Transporter creation error:", error);
             throw new ApiError(500, "Failed to initialize email service");
@@ -21,8 +50,21 @@ class EmailService {
 
     async sendOTP(to: string, otp: string) {
         try {
-            console.log(`📧 Sending OTP to ${to} via SMTP...`);
+            console.log(`📧 Attempting to send OTP to ${to} via SMTP...`);
             const transporter = this.createTransporter();
+
+            // Verify connection configuration
+            try {
+                // We use a shorter timeout for verification to fail fast
+                await Promise.race([
+                    transporter.verify(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Verification Timeout")), 10000))
+                ]);
+                console.log("✅ SMTP Connection verified successfully");
+            } catch (verifyError: any) {
+                console.error("❌ SMTP Verification failed:", verifyError.message);
+                // We don't throw here, we try to send anyway as verify() can sometimes be flaky
+            }
 
             const mailOptions = {
                 from: `"Chat Analytics" <${process.env.EMAIL_USER}>`,
@@ -45,8 +87,13 @@ class EmailService {
             console.log("✅ Email sent successfully:", result.messageId);
             return result;
         } catch (error: any) {
-            console.error("❌ Error sending email:", error);
-            throw new ApiError(500, "Failed to send verification email");
+            console.error("❌ Error sending email detail:", {
+                message: error.message,
+                code: error.code,
+                command: error.command,
+                response: error.response
+            });
+            throw new ApiError(500, `Failed to send verification email: ${error.message}`);
         }
     }
 }
