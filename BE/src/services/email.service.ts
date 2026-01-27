@@ -14,13 +14,13 @@ class EmailService {
         this.templateId = process.env.EMAILJS_TEMPLATE_ID || '';
 
         if (!this.publicKey || !this.privateKey || !this.serviceId || !this.templateId) {
-            console.warn("⚠️ EmailJS credentials missing in environment variables");
+            console.warn("⚠️ Credentials missing in environment variables");
         }
     }
 
     async sendOTP(toName: string, toEmail: string, otp: string) {
         try {
-            console.log(`📧 Sending OTP to ${toEmail} via EmailJS (Backend)...`);
+            console.log(`📧 Sending OTP to ${toEmail}`);
 
             const response = await emailjs.send(
                 this.serviceId,
@@ -29,6 +29,13 @@ class EmailService {
                     to_name: toName,
                     to_email: toEmail,
                     otp_code: otp,
+                    time: new Date().toLocaleString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true,
+                        timeZone: 'Asia/Kolkata' // Matching your local time zone
+                    })
                 },
                 {
                     publicKey: this.publicKey,
@@ -36,10 +43,10 @@ class EmailService {
                 }
             );
 
-            console.log("✅ Email sent successfully via EmailJS:", response.status, response.text);
+            console.log("✅ Email sent successfully", response.status, response.text);
             return response;
         } catch (error: any) {
-            console.error("❌ EmailJS Error:", error);
+            console.error("❌ Error Found:", error);
             throw new ApiError(500, `Failed to send email: ${error.message || 'Unknown error'}`);
         }
     }
