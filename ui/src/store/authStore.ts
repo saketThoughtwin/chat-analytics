@@ -18,13 +18,14 @@ interface AuthState {
     setHasHydrated: (state: boolean) => void;
     fetchMe: () => Promise<void>;
     sendOTP: (name: string, email: string) => Promise<void>;
+    verifyOTP: (otp: string) => Promise<void>;
     tempSignupData: any;
     setTempSignupData: (data: any) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             token: null,
             _hasHydrated: false,
@@ -43,12 +44,21 @@ export const useAuthStore = create<AuthState>()(
             sendOTP: async (name: string, email: string) => {
                 await api.post('/auth/send-otp', { name, email });
             },
+            verifyOTP: async (otp: string) => {
+                const { tempSignupData } = get();
+                const response = await api.post('/auth/signup', {
+                    ...tempSignupData,
+                    otp
+                });
+                const { user, token } = response.data;
+                set({ user, token, tempSignupData: null });
+            },
             tempSignupData: null,
             setTempSignupData: (data: any) => set({ tempSignupData: data }),
         }),
         {
             name: 'auth-storage',
-            partialize: (state) => ({ token: state.token, user: state.user }), // Don't persist tempSignupData
+            partialize: (state) => ({ token: state.token, user: state.user }),
             onRehydrateStorage: (state) => {
                 return () => state.setHasHydrated(true);
             },

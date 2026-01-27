@@ -15,7 +15,6 @@ export default function SignupPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const setAuth = useAuthStore((state) => state.setAuth);
     const token = useAuthStore((state) => state.token);
     const _hasHydrated = useAuthStore((state) => state._hasHydrated);
 
@@ -31,16 +30,17 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            // Send OTP
+            // 1. Trigger OTP generation and email sending on Backend
             await useAuthStore.getState().sendOTP(name, email);
 
-            // Store data for verification step
+            // 2. Store data for verification step
             useAuthStore.getState().setTempSignupData({ name, email, password });
 
-            // Redirect to verify page
+            // 3. Redirect to verify page
             router.push(`/verify-email?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+            console.error('Signup Error:', err);
+            setError(err.response?.data?.message || 'Failed to process signup. Please try again.');
         } finally {
             setLoading(false);
         }

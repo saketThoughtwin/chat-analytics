@@ -1,87 +1,38 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, Suspense } from "react";
-import {
-    Box,
-    Typography,
-    TextField,
-    Button,
-    Paper,
-    Alert,
-    CircularProgress,
-} from "@mui/material";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAuthStore } from "../../src/store/authStore";
-import api from "../../src/lib/api";
-import { API_ENDPOINTS } from "../../src/lib/apiendpoint";
+import React, { useState, useEffect } from 'react';
+import { Box, Button, TextField, Typography, Container, Paper, Alert, Backdrop, CircularProgress } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuthStore } from '../../src/store/authStore';
 
-function VerifyEmailContent() {
+export default function VerifyEmailPage() {
+    const [otp, setOtp] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [otp, setOtp] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [email, setEmail] = useState("");
-    const [name, setName] = useState("");
-    const [password, setPassword] = useState("");
+    const email = searchParams.get('email');
+    const name = searchParams.get('name');
+
+    const verifyOTP = useAuthStore((state) => state.verifyOTP);
+    const tempSignupData = useAuthStore((state) => state.tempSignupData);
 
     useEffect(() => {
-        const emailParam = searchParams.get("email");
-        const nameParam = searchParams.get("name");
-        const tempData = useAuthStore.getState().tempSignupData;
-
-        if (!emailParam || !nameParam) {
-            router.push("/signup");
-            return;
+        if (!tempSignupData) {
+            router.push('/signup');
         }
+    }, [tempSignupData, router]);
 
-        setEmail(emailParam);
-        setName(nameParam);
-
-        if (tempData && tempData.email === emailParam) {
-            setPassword(tempData.password);
-        } else {
-            // If no password in state (e.g. refresh), redirect to signup
-            router.push("/signup");
-        }
-    }, [searchParams, router]);
-
-    const handleVerify = async () => {
-        if (!otp || otp.length !== 6) {
-            setError("Please enter a valid 6-digit OTP");
-            return;
-        }
-
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
         setLoading(true);
-        setError("");
 
         try {
-            // Call register endpoint which now verifies OTP
-            await api.post(API_ENDPOINTS.AUTH.SIGNUP, {
-                name,
-                email,
-                password,
-                otp,
-            });
-
-            // On success, redirect to login
-            router.push("/login?verified=true");
+            await verifyOTP(otp);
+            router.push('/chat');
         } catch (err: any) {
-            console.error("Verification failed", err);
-            setError(err.response?.data?.message || "Verification failed. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleResend = async () => {
-        setLoading(true);
-        setError("");
-        try {
-            await useAuthStore.getState().sendOTP(name, email);
-            alert("OTP resent successfully!");
-        } catch (err: any) {
-            setError("Failed to resend OTP");
+            setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -90,85 +41,55 @@ function VerifyEmailContent() {
     return (
         <Box
             sx={{
-                minHeight: "100vh",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                bgcolor: "#f0f2f5",
-                p: 2,
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
             }}
         >
-            <Paper
-                elevation={0}
-                sx={{
-                    p: 4,
-                    width: "100%",
-                    maxWidth: 400,
-                    borderRadius: 4,
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                    textAlign: "center",
-                }}
+            <Container maxWidth="xs">
+                <Paper elevation={10} sx={{ p: 4, borderRadius: 3 }}>
+                    <Typography variant="h4" component="h1" gutterBottom align="center" fontWeight="bold" color="primary">
+                        Verify Email
+                    </Typography>
+                    <Typography variant="body1" align="center" color="textSecondary" sx={{ mb: 3 }}>
+                        We've sent a 6-digit code to <strong>{email}</strong> via EmailJS.
+                    </Typography>
+
+                    {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+                    <form onSubmit={handleSubmit}>
+                        <TextField
+                            fullWidth
+                            label="Enter 6-digit OTP"
+                            variant="outlined"
+                            margin="normal"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                            required
+                            inputProps={{ maxLength: 6, style: { textAlign: 'center', letterSpacing: '8px', fontSize: '24px' } }}
+                        />
+                        <Button
+                            fullWidth
+                            type="submit"
+                            variant="contained"
+                            color="primary"
+                            size="large"
+                            disabled={loading}
+                            sx={{ mt: 3, mb: 2, py: 1.5, borderRadius: 2, fontWeight: 'bold' }}
+                        >
+                            {loading ? 'Verifying...' : 'Verify & Create Account'}
+                        </Button>
+                    </form>
+                </Paper>
+            </Container>
+            <Backdrop
+                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+                open={loading}
             >
-                <Typography variant="h5" fontWeight="700" gutterBottom>
-                    Verify Your Email
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    We sent a 6-digit code to <strong>{email}</strong>
-                </Typography>
-
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2, textAlign: "left" }}>
-                        {error}
-                    </Alert>
-                )}
-
-                <TextField
-                    fullWidth
-                    label="Enter OTP"
-                    variant="outlined"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    sx={{ mb: 3 }}
-                    inputProps={{ style: { textAlign: "center", letterSpacing: "5px", fontSize: "1.2rem" } }}
-                />
-
-                <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    onClick={handleVerify}
-                    disabled={loading || otp.length !== 6}
-                    sx={{
-                        bgcolor: "#6366f1",
-                        "&:hover": { bgcolor: "#4f46e5" },
-                        mb: 2,
-                        height: 48,
-                    }}
-                >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : "Verify & Create Account"}
-                </Button>
-
-                <Button
-                    variant="text"
-                    onClick={handleResend}
-                    disabled={loading}
-                    sx={{ color: "text.secondary", textTransform: "none" }}
-                >
-                    Resend Code
-                </Button>
-            </Paper>
+                <CircularProgress color="inherit" />
+            </Backdrop>
         </Box>
-    );
-}
-
-export default function VerifyEmail() {
-    return (
-        <Suspense fallback={
-            <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-                <CircularProgress />
-            </Box>
-        }>
-            <VerifyEmailContent />
-        </Suspense>
     );
 }

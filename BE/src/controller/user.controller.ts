@@ -11,16 +11,21 @@ import emailService from "@services/email.service";
 class UserController {
   static async sendOTP(req: Request, res: Response) {
     const { email, name } = req.body;
-    console.log(`📩 Received send-otp request for ${email}`);
+    console.log(`📩 Processing OTP for ${email} via Backend EmailJS`);
+
     if (!email || !name) {
       throw new ApiError(400, "Email and Name are required");
     }
 
     const otp = await otpService.generateOTP(email);
-    await emailService.sendOTP(email, otp);
 
-    console.log(`✅ send-otp request for ${email} completed`);
-    res.status(200).json({ success: true, message: "OTP sent successfully" });
+    // Send the email from the backend
+    await emailService.sendOTP(name, email, otp);
+
+    res.status(200).json({
+      success: true,
+      message: "OTP sent successfully to your email."
+    });
   }
 
   static async register(req: Request, res: Response) {
@@ -36,8 +41,23 @@ class UserController {
 
     const user = await userService.register(name, email, password);
 
-    res.status(201).json({ success: true, data: user, message: "User registered successfully" });
+    // Direct login after registration
+    const token = signToken(String(user._id));
+    await setSession(String(user._id), token);
+    await redis.sadd('online_users', String(user._id));
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      message: "User registered and logged in successfully"
+    });
   }
+
   static async login(req: Request, res: Response) {
     const { email, password } = req.body;
 
