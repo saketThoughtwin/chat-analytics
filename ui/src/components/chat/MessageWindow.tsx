@@ -22,11 +22,206 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DoneIcon from "@mui/icons-material/Done";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PauseIcon from "@mui/icons-material/Pause";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import VolumeDownIcon from "@mui/icons-material/VolumeDown";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import { getSocket } from "../../lib/socket";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import { Slider } from "@mui/material";
+
+// Custom Audio Player Component for stable UI
+const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [previousVolume, setPreviousVolume] = useState(1);
+  const [showVolume, setShowVolume] = useState(false);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSliderChange = (_: any, newValue: number | number[]) => {
+    if (audioRef.current) {
+      const time = newValue as number;
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const handleVolumeChange = (_: any, newValue: number | number[]) => {
+    const newVolume = newValue as number;
+    setVolume(newVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      if (volume > 0) {
+        setPreviousVolume(volume);
+        setVolume(0);
+        audioRef.current.volume = 0;
+      } else {
+        const targetVol = previousVolume === 0 ? 1 : previousVolume;
+        setVolume(targetVol);
+        audioRef.current.volume = targetVol;
+      }
+    }
+  };
+
+  const formatTime = (time: number) => {
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+      width: '100%',
+      minWidth: { xs: '200px', sm: '220px' },
+      py: 0.2
+    }}>
+      <audio
+        ref={audioRef}
+        src={src}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+      />
+      <IconButton
+        onClick={togglePlay}
+        size="small"
+        sx={{
+          bgcolor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(99, 102, 241, 0.1)',
+          color: isMe ? 'white' : '#6366f1',
+          '&:hover': { bgcolor: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(99, 102, 241, 0.2)' }
+        }}
+      >
+        {isPlaying ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
+      </IconButton>
+
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.2 }}>
+        <Slider
+          size="small"
+          value={currentTime}
+          max={duration || 100}
+          onChange={handleSliderChange}
+          sx={{
+            color: isMe ? 'white' : '#6366f1',
+            height: 3,
+            padding: '11px 0',
+            '& .MuiSlider-thumb': {
+              width: 10,
+              height: 10,
+              transition: '0.3s cubic-bezier(.47,1.64,.41,.8)',
+              '&:before': { boxShadow: '0 2px 12px 0 rgba(0,0,0,0.4)' },
+              '&:hover, &.Mui-focusVisible': {
+                boxShadow: `0px 0px 0px 6px ${isMe ? 'rgba(255,255,255,0.16)' : 'rgba(99, 102, 241, 0.16)'}`,
+              },
+              '&.Mui-active': { width: 14, height: 14 },
+            },
+            '& .MuiSlider-rail': { opacity: 0.28 },
+          }}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="caption" sx={{ fontSize: '0.65rem', opacity: 0.8, color: 'inherit' }}>
+            {formatTime(currentTime)}
+          </Typography>
+          <Typography variant="caption" sx={{ fontSize: '0.65rem', opacity: 0.8, color: 'inherit' }}>
+            {formatTime(duration)}
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box
+        onMouseEnter={() => setShowVolume(true)}
+        onMouseLeave={() => setShowVolume(false)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          ml: 1,
+          position: 'relative',
+          transition: 'all 0.3s ease'
+        }}
+      >
+        <IconButton
+          size="small"
+          onClick={toggleMute}
+          sx={{
+            color: isMe ? 'white' : '#6366f1',
+            opacity: 0.8,
+            p: 0.4
+          }}
+        >
+          {volume === 0 ? <VolumeOffIcon sx={{ fontSize: 14 }} /> : volume < 0.5 ? <VolumeDownIcon sx={{ fontSize: 14 }} /> : <VolumeUpIcon sx={{ fontSize: 14 }} />}
+        </IconButton>
+
+        <Box sx={{
+          width: showVolume ? { xs: 40, sm: 60 } : 0,
+          overflow: 'hidden',
+          transition: 'width 0.3s ease',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          <Slider
+            size="small"
+            value={volume}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={handleVolumeChange}
+            sx={{
+              width: { xs: 32, sm: 45 },
+              color: isMe ? 'white' : '#6366f1',
+              height: 2,
+              mx: 0.5,
+              '& .MuiSlider-thumb': {
+                width: 6,
+                height: 6,
+                '&:hover, &.Mui-focusVisible': {
+                  boxShadow: `0px 0px 0px 3px ${isMe ? 'rgba(255,255,255,0.16)' : 'rgba(99, 102, 241, 0.16)'}`,
+                },
+              },
+              '& .MuiSlider-rail': { opacity: 0.28 },
+            }}
+          />
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 export default function MessageWindow() {
   const {
@@ -390,6 +585,7 @@ export default function MessageWindow() {
                   sx={{
                     p: '10px 16px',
                     maxWidth: "70%",
+                    minWidth: msg.message.startsWith("data:audio/") ? { xs: '210px', sm: '250px' } : 'auto',
                     // Gradient for me, slightly dimmer white/gray for them
                     background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
                     color: isMe ? 'white' : '#1e293b',
@@ -397,17 +593,13 @@ export default function MessageWindow() {
                     borderBottomRightRadius: isMe ? '4px' : '20px',
                     borderBottomLeftRadius: isMe ? '20px' : '4px',
                     boxShadow: isMe ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)', // Softer shadow
-                    border: isMe ? 'none' : '1px solid rgba(255, 243, 224, 0.5)' // Subtle border for received
+                    border: isMe ? 'none' : '1px solid rgba(255, 243, 224, 0.5)', // Subtle border for received
+                    overflow: 'hidden'
                   }}
                 >
                   <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
                     {msg.message.startsWith("data:audio/") ? (
-                      <Box sx={{ minWidth: 200, mt: 1 }}>
-                        <audio controls style={{ width: '100%', height: '32px' }}>
-                          <source src={msg.message} type="audio/webm" />
-                          Your browser does not support the audio element.
-                        </audio>
-                      </Box>
+                      <CustomAudioPlayer src={msg.message} isMe={isMe} />
                     ) : (
                       msg.message
                     )}
