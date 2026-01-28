@@ -12,8 +12,10 @@ import {
   ListItem,
   CircularProgress,
   Backdrop,
+  Popover,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DoneIcon from "@mui/icons-material/Done";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
@@ -21,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import { getSocket } from "../../lib/socket";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
 export default function MessageWindow() {
   const {
@@ -44,6 +47,22 @@ export default function MessageWindow() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldScrollRef = useRef(true);
   const isInitialLoadRef = useRef(true);
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+  const handleEmojiOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setEmojiAnchorEl(event.currentTarget);
+  };
+
+  const handleEmojiClose = () => {
+    setEmojiAnchorEl(null);
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setInput((prev) => prev + emojiData.emoji);
+    // Optional: focus back on text field
+  };
+
+  const openEmoji = Boolean(emojiAnchorEl);
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
@@ -407,6 +426,48 @@ export default function MessageWindow() {
               '& input': { fontSize: '0.95rem' }
             }}
           />
+          <IconButton
+            onClick={handleEmojiOpen}
+            sx={{
+              color: openEmoji ? '#6366f1' : 'text.secondary',
+              transition: 'all 0.2s',
+              '&:hover': { color: '#6366f1' }
+            }}
+          >
+            <EmojiEmotionsIcon fontSize="medium" />
+          </IconButton>
+          <Popover
+            open={openEmoji}
+            anchorEl={emojiAnchorEl}
+            onClose={handleEmojiClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            PaperProps={{
+              sx: {
+                borderRadius: '16px',
+                overflow: 'hidden',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                border: 'none',
+                mt: -1
+              }
+            }}
+          >
+            <EmojiPicker
+              onEmojiClick={onEmojiClick}
+              autoFocusSearch={false}
+              theme={"light" as any}
+              width={320}
+              height={400}
+              skinTonesDisabled
+              searchPlaceHolder="Search emoji..."
+            />
+          </Popover>
           <IconButton
             onClick={handleSend}
             disabled={!input.trim()}
