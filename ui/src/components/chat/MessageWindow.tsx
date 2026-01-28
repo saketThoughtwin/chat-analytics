@@ -16,6 +16,9 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
+import MicIcon from "@mui/icons-material/Mic";
+import StopIcon from "@mui/icons-material/Stop";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DoneIcon from "@mui/icons-material/Done";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
@@ -48,6 +51,55 @@ export default function MessageWindow() {
   const shouldScrollRef = useRef(true);
   const isInitialLoadRef = useRef(true);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          sendMessage(activeRoomId!, base64Audio);
+        };
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("Could not access microphone. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
 
   const handleEmojiOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
     setEmojiAnchorEl(event.currentTarget);
@@ -59,10 +111,15 @@ export default function MessageWindow() {
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setInput((prev) => prev + emojiData.emoji);
-    // Optional: focus back on text field
   };
 
   const openEmoji = Boolean(emojiAnchorEl);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const otherUser = activeRoom?.participants.find(
@@ -344,7 +401,16 @@ export default function MessageWindow() {
                   }}
                 >
                   <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {msg.message}
+                    {msg.message.startsWith("data:audio/") ? (
+                      <Box sx={{ minWidth: 200, mt: 1 }}>
+                        <audio controls style={{ width: '100%', height: '32px' }}>
+                          <source src={msg.message} type="audio/webm" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </Box>
+                    ) : (
+                      msg.message
+                    )}
                   </Typography>
                   <Box
                     sx={{
@@ -410,11 +476,12 @@ export default function MessageWindow() {
         }}>
           <TextField
             fullWidth
-            placeholder="Type a message..."
+            placeholder={isRecording ? "Recording..." : "Type a message..."}
             variant="standard"
             InputProps={{ disableUnderline: true }}
-            value={input}
+            value={isRecording ? "" : input}
             onChange={handleTyping}
+            disabled={isRecording}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -426,8 +493,26 @@ export default function MessageWindow() {
               '& input': { fontSize: '0.95rem' }
             }}
           />
+          {isRecording && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, color: '#ef4444' }}>
+              <FiberManualRecordIcon sx={{ fontSize: 12, animation: 'pulse 1.5s infinite' }} />
+              <Typography variant="body2" fontWeight="600">
+                {formatTime(recordingTime)}
+              </Typography>
+              <style>
+                {`
+                  @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                    100% { opacity: 1; }
+                  }
+                `}
+              </style>
+            </Box>
+          )}
           <IconButton
             onClick={handleEmojiOpen}
+            disabled={isRecording}
             sx={{
               color: openEmoji ? '#6366f1' : 'text.secondary',
               transition: 'all 0.2s',
@@ -468,22 +553,37 @@ export default function MessageWindow() {
               searchPlaceHolder="Search emoji..."
             />
           </Popover>
-          <IconButton
-            onClick={handleSend}
-            disabled={!input.trim()}
-            sx={{
-              bgcolor: input.trim() ? '#6366f1' : 'rgba(0,0,0,0.05)',
-              color: 'white',
-              '&:hover': { bgcolor: '#4f46e5' },
-              width: 44,
-              height: 44,
-              borderRadius: '18px',
-              transition: 'all 0.2s',
-              transform: input.trim() ? 'scale(1)' : 'scale(0.95)'
-            }}
-          >
-            <SendIcon fontSize="small" />
-          </IconButton>
+          {input.trim() || isRecording ? (
+            <IconButton
+              onClick={isRecording ? stopRecording : handleSend}
+              sx={{
+                bgcolor: '#6366f1',
+                color: 'white',
+                '&:hover': { bgcolor: '#4f46e5' },
+                width: 44,
+                height: 44,
+                borderRadius: '18px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isRecording ? <StopIcon fontSize="small" /> : <SendIcon fontSize="small" />}
+            </IconButton>
+          ) : (
+            <IconButton
+              onClick={startRecording}
+              sx={{
+                bgcolor: 'rgba(0,0,0,0.05)',
+                color: 'text.secondary',
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.1)', color: '#6366f1' },
+                width: 44,
+                height: 44,
+                borderRadius: '18px',
+                transition: 'all 0.2s',
+              }}
+            >
+              <MicIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       </Box>
     </Box>

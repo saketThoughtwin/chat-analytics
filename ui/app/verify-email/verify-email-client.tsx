@@ -66,10 +66,6 @@ export default function VerifyEmailClient() {
             Verify Email
           </Typography>
 
-          <Typography align="center" sx={{ mt: 1, mb: 3 }}>
-            We've sent a code to <strong>{email}</strong>
-          </Typography>
-
           {error && <Alert severity="error">{error}</Alert>}
 
           <form onSubmit={handleSubmit}>

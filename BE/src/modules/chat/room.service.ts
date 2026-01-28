@@ -44,7 +44,12 @@ class RoomService {
      * Update room's last message metadata
      */
     async updateRoomLastMessage(roomId: string, message: string, senderId: string): Promise<void> {
-        await roomRepository.updateLastMessage(roomId, message, senderId);
+        // Use a placeholder for voice messages in the room list to keep it lightweight
+        const displayMessage = message.startsWith('data:audio/')
+            ? '🎤 Voice message'
+            : message;
+
+        await roomRepository.updateLastMessage(roomId, displayMessage, senderId);
     }
 
     /**
