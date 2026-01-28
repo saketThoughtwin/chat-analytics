@@ -22,6 +22,16 @@ class EmailService {
         try {
             console.log(`📧 Sending OTP to ${toEmail}`);
 
+            // Calculate expiration time (5 minutes from now)
+            const expiryDate = new Date(Date.now() + 5 * 60 * 1000);
+            const expiryTimeStr = expiryDate.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZone: 'Asia/Kolkata'
+            });
+
             const response = await emailjs.send(
                 this.serviceId,
                 this.templateId,
@@ -29,13 +39,7 @@ class EmailService {
                     to_name: toName,
                     to_email: toEmail,
                     otp_code: otp,
-                    time: new Date().toLocaleString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: true,
-                        timeZone: 'Asia/Kolkata' // Matching your local time zone
-                    })
+                    time: expiryTimeStr
                 },
                 {
                     publicKey: this.publicKey,

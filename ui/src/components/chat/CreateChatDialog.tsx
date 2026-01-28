@@ -15,7 +15,8 @@ import {
     CircularProgress,
     Typography,
     Box,
-    IconButton
+    IconButton,
+    Backdrop
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../lib/api';
@@ -38,6 +39,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
     const [search, setSearch] = useState('');
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
+    const [creating, setCreating] = useState(false);
     const { setActiveRoom, fetchRooms } = useChatStore();
 
     useEffect(() => {
@@ -67,6 +69,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
     }, [search, open]);
 
     const handleCreateRoom = async (otherUserId: string) => {
+        setCreating(true);
         try {
             const response = await api.post(API_ENDPOINTS.CHAT.ROOMS, { otherUserId });
             const newRoom = response.data;
@@ -75,6 +78,8 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
             onClose();
         } catch (error) {
             console.error('Failed to create room', error);
+        } finally {
+            setCreating(false);
         }
     };
 
@@ -126,6 +131,15 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
                     </List>
                 )}
             </DialogContent>
+            <Backdrop
+                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1, position: 'absolute' }}
+                open={creating}
+            >
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress color="inherit" />
+                
+                </Box>
+            </Backdrop>
         </Dialog>
     );
 }

@@ -123,10 +123,12 @@ export default function LoginPage() {
                 </Paper>
             </Container>
             <Backdrop
-                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.4)' }}
                 open={loading}
             >
-                <CircularProgress color="inherit" />
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress color="inherit" thickness={4} size={50} />
+                </Box>
             </Backdrop>
         </Box >
     );

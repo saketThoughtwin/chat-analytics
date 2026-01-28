@@ -25,10 +25,12 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  Fab,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AddIcon from "@mui/icons-material/Add";
+import ChatIcon from "@mui/icons-material/Chat";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
@@ -114,6 +116,7 @@ export default function RoomList() {
         height: "100%",
         borderRight: "1px solid #e0e0e0",
         bgcolor: "background.paper",
+        position: "relative",
       }}
     >
       <Box
@@ -131,56 +134,46 @@ export default function RoomList() {
             sx={{
               width: 40,
               height: 40,
-              bgcolor: 'transparent',
-              filter: 'drop-shadow(0 4px 6px rgba(99, 102, 241, 0.3))'
+              bgcolor: "transparent",
+              filter: "drop-shadow(0 4px 6px rgba(99, 102, 241, 0.3))",
             }}
             variant="rounded"
           >
             C
           </Avatar>
-          <Typography variant="h5" fontWeight="800" sx={{
-            background: 'linear-gradient(45deg, #1e1b4b, #4338ca)',
-            backgroundClip: 'text',
-            textFillColor: 'transparent',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            letterSpacing: '-0.5px'
-          }}>
+          <Typography
+            variant="h5"
+            fontWeight="800"
+            sx={{
+              background: "linear-gradient(45deg, #1e1b4b, #4338ca)",
+              backgroundClip: "text",
+              textFillColor: "transparent",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              letterSpacing: "-0.5px",
+            }}
+          >
             Chats
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="New Chat">
-            <IconButton
-              onClick={() => setCreateDialogOpen(true)}
-              size="small"
-              sx={{
-                bgcolor: 'rgba(255,255,255,0.5)',
-                boxShadow: 'none',
-                border: '1px solid rgba(0,0,0,0.05)',
-                '&:hover': { bgcolor: 'white', transform: 'translateY(-1px)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' },
-                transition: 'all 0.2s',
-                width: 36,
-                height: 36,
-                color: '#6366f1'
-              }}
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Analytics">
             <IconButton
               onClick={() => router.push("/analytics")}
               size="small"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.5)',
-                boxShadow: 'none',
-                border: '1px solid rgba(0,0,0,0.05)',
-                '&:hover': { bgcolor: 'white', transform: 'translateY(-1px)', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' },
-                transition: 'all 0.2s',
+                bgcolor: "rgba(255,255,255,0.5)",
+                boxShadow: "none",
+                border: "1px solid rgba(0,0,0,0.05)",
+                "&:hover": {
+                  bgcolor: "white",
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+                },
+                transition: "all 0.2s",
                 width: 36,
                 height: 36,
-                color: '#6366f1'
+                color: "#6366f1",
               }}
             >
               <AssessmentIcon fontSize="small" />
@@ -191,14 +184,17 @@ export default function RoomList() {
               onClick={handleLogout}
               size="small"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.5)',
-                boxShadow: 'none',
-                border: '1px solid rgba(0,0,0,0.05)',
-                color: '#ef4444',
-                '&:hover': { bgcolor: '#fee2e2', transform: 'translateY(-1px)' },
-                transition: 'all 0.2s',
+                bgcolor: "rgba(255,255,255,0.5)",
+                boxShadow: "none",
+                border: "1px solid rgba(0,0,0,0.05)",
+                color: "#ef4444",
+                "&:hover": {
+                  bgcolor: "#fee2e2",
+                  transform: "translateY(-1px)",
+                },
+                transition: "all 0.2s",
                 width: 36,
-                height: 36
+                height: 36,
               }}
             >
               <LogoutIcon fontSize="small" />
@@ -253,19 +249,21 @@ export default function RoomList() {
                 key={room._id}
                 disablePadding
                 secondaryAction={
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
                     {room.unreadCount ? (
-                      <Box sx={{
-                        bgcolor: '#6366f1',
-                        color: 'white',
-                        borderRadius: '12px',
-                        px: 1,
-                        py: 0.2,
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        mr: 1,
-                        boxShadow: '0 2px 4px rgba(99, 102, 241, 0.3)'
-                      }}>
+                      <Box
+                        sx={{
+                          bgcolor: "#6366f1",
+                          color: "white",
+                          borderRadius: "12px",
+                          px: 1,
+                          py: 0.2,
+                          fontSize: "0.75rem",
+                          fontWeight: "bold",
+                          mr: 1,
+                          boxShadow: "0 2px 4px rgba(99, 102, 241, 0.3)",
+                        }}
+                      >
                         {room.unreadCount}
                       </Box>
                     ) : null}
@@ -274,7 +272,7 @@ export default function RoomList() {
                       aria-label="more"
                       size="small"
                       onClick={(e) => handleMenuOpen(e, room._id)}
-                      sx={{ opacity: 0.4, '&:hover': { opacity: 1 } }}
+                      sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
                     >
                       <MoreVertIcon fontSize="small" />
                     </IconButton>
@@ -288,14 +286,18 @@ export default function RoomList() {
                         sx: {
                           borderRadius: 3,
                           mt: 1,
-                          boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                          border: '1px solid rgba(0,0,0,0.05)'
-                        }
+                          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+                          border: "1px solid rgba(0,0,0,0.05)",
+                        },
                       }}
                     >
                       <MenuItem
                         onClick={() => handleDeleteClick(room._id)}
-                        sx={{ color: "error.main", fontSize: '0.9rem', fontWeight: 500 }}
+                        sx={{
+                          color: "error.main",
+                          fontSize: "0.9rem",
+                          fontWeight: 500,
+                        }}
                       >
                         Delete Chat
                       </MenuItem>
@@ -304,70 +306,88 @@ export default function RoomList() {
                 }
                 sx={{
                   px: 2,
-                  py: 0.5
+                  py: 0.5,
                 }}
               >
                 <ListItemButton
                   selected={activeRoomId === room._id}
                   onClick={() => setActiveRoom(room._id)}
                   sx={{
-                    borderRadius: '16px',
+                    borderRadius: "16px",
                     mb: 0.5,
-                    transition: 'all 0.2s ease',
+                    transition: "all 0.2s ease",
                     "&.Mui-selected": {
                       bgcolor: "rgba(255,255,255,0.6)", // More transparent/dimmer
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                      transform: 'scale(1.01)',
-                      '&:hover': { bgcolor: "rgba(255,255,255,0.7)" }
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                      transform: "scale(1.01)",
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.7)" },
                     },
                     "&:hover": { bgcolor: "rgba(0,0,0,0.03)" }, // Subtle dark hover instead of white
                   }}
                 >
                   <ListItemAvatar>
-                    <Box sx={{ position: 'relative' }}>
+                    <Box sx={{ position: "relative" }}>
                       <Avatar
                         alt={otherUser?.name}
                         src={otherUser?.avatar}
                         sx={{
                           width: 52,
                           height: 52,
-                          border: activeRoomId === room._id ? '2px solid #6366f1' : '2px solid transparent',
-                          transition: 'border 0.2s'
+                          border:
+                            activeRoomId === room._id
+                              ? "2px solid #6366f1"
+                              : "2px solid transparent",
+                          transition: "border 0.2s",
                         }}
                       >
                         {otherUser?.name?.charAt(0)}
                       </Avatar>
                       {isOnline && (
-                        <Box sx={{
-                          position: 'absolute',
-                          bottom: 2,
-                          right: 2,
-                          width: 12,
-                          height: 12,
-                          bgcolor: '#22c55e',
-                          borderRadius: '50%',
-                          border: '2px solid white'
-                        }} />
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: 2,
+                            right: 2,
+                            width: 12,
+                            height: 12,
+                            bgcolor: "#22c55e",
+                            borderRadius: "50%",
+                            border: "2px solid white",
+                          }}
+                        />
                       )}
                     </Box>
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Typography variant="subtitle1" fontWeight={activeRoomId === room._id ? "700" : "600"} color="text.primary" noWrap>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={activeRoomId === room._id ? "700" : "600"}
+                        color="text.primary"
+                        noWrap
+                      >
                         {otherUser?.name || "Unknown"}
                       </Typography>
                     }
                     secondary={
                       <Typography
                         variant="body2"
-                        color={room.unreadCount ? "text.primary" : "text.secondary"}
+                        color={
+                          room.unreadCount ? "text.primary" : "text.secondary"
+                        }
                         fontWeight={room.unreadCount ? "600" : "400"}
                         noWrap
-                        sx={{ maxWidth: '85%', opacity: 0.8 }}
+                        sx={{ maxWidth: "85%", opacity: 0.8 }}
                       >
-                        {typingUsers[room._id]?.length > 0
-                          ? <span style={{ color: '#22c55e', fontWeight: 'bold' }}>typing...</span>
-                          : room.lastMessage?.message || "No messages yet"}
+                        {typingUsers[room._id]?.length > 0 ? (
+                          <span
+                            style={{ color: "#22c55e", fontWeight: "bold" }}
+                          >
+                            typing...
+                          </span>
+                        ) : (
+                          room.lastMessage?.message || "No messages yet"
+                        )}
                       </Typography>
                     }
                     sx={{ my: 0, ml: 1 }}
@@ -425,6 +445,51 @@ export default function RoomList() {
           Chat deleted successfully!
         </Alert>
       </Snackbar> */}
+      {/* Floating Action Button for New Chat */}
+      <Fab
+        color="primary"
+        aria-label="add"
+        onClick={() => setCreateDialogOpen(true)}
+        sx={{
+          position: "absolute",
+          bottom: 24,
+          right: 24,
+          width: 44,
+          height: 44,
+          minHeight: 44,
+          bgcolor: "#6366f1",
+          "&:hover": {
+            bgcolor: "#4f46e5",
+            transform: "scale(1.1)",
+          },
+          transition: "all 0.2s",
+          boxShadow: "0 4px 20px rgba(99, 102, 241, 0.4)",
+        }}
+      >
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ChatIcon sx={{ fontSize: 28 }} />
+          <AddIcon
+            sx={{
+              position: "absolute",
+              fontSize: 14,
+              color: "#6366f1",
+              bgcolor: "white",
+              borderRadius: "50%",
+              p: 0.1,
+              top: 2,
+              right: -2,
+              border: "1px solid #6366f1",
+            }}
+          />
+        </Box>
+      </Fab>
     </Box>
   );
 }

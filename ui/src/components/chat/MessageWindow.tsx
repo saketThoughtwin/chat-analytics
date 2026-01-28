@@ -315,13 +315,13 @@ export default function MessageWindow() {
                     p: '10px 16px',
                     maxWidth: "70%",
                     // Gradient for me, slightly dimmer white/gray for them
-                    background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#ffffff",
+                    background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
                     color: isMe ? 'white' : '#1e293b',
                     borderRadius: '20px', // Pill shape
                     borderBottomRightRadius: isMe ? '4px' : '20px',
                     borderBottomLeftRadius: isMe ? '20px' : '4px',
                     boxShadow: isMe ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)', // Softer shadow
-                    border: isMe ? 'none' : '1px solid rgba(0,0,0,0.03)' // Subtle border for received
+                    border: isMe ? 'none' : '1px solid rgba(255, 243, 224, 0.5)' // Subtle border for received
                   }}
                 >
                   <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
