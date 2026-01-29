@@ -15,10 +15,15 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req, file) => {
         const isVideo = file.mimetype.startsWith('video');
+        const isAudio = file.mimetype.startsWith('audio');
         return {
             folder: 'chat_media',
-            resource_type: isVideo ? 'video' : 'image',
-            allowed_formats: isVideo ? ['mp4', 'mov', 'avi'] : ['jpg', 'jpeg', 'png', 'webp'],
+            resource_type: (isVideo || isAudio) ? 'video' : 'image',
+            allowed_formats: isVideo
+                ? ['mp4', 'mov', 'avi', 'webm']
+                : isAudio
+                    ? ['mp3', 'wav', 'ogg', 'webm', 'm4a']
+                    : ['jpg', 'jpeg', 'png', 'webp'],
             public_id: `${Date.now()}-${file.originalname.split('.')[0]}`,
         };
     },

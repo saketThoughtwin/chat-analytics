@@ -387,6 +387,8 @@ export default function RoomList() {
                           </span>
                         ) : (room as any).lastMessagePreview ? (
                           (room as any).lastMessagePreview
+                        ) : room.lastMessage?.type === 'audio' ? (
+                          '🎤 Voice message'
                         ) : (
                           room.lastMessage?.message || "No messages yet"
                         )}

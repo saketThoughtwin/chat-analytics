@@ -12,7 +12,7 @@ interface MessageData {
     sender: string;
     roomId: string;
     message?: string;
-    type?: 'text' | 'image' | 'video';
+    type?: 'text' | 'image' | 'video' | 'audio';
     mediaUrl?: string;
     receiver?: string;
 }
@@ -34,7 +34,7 @@ class MessageService {
         });
 
         // Update room's last message
-        const lastMsgText = data.type === 'image' ? '📷 Photo' : data.type === 'video' ? '🎥 Video' : data.message || '';
+        const lastMsgText = data.type === 'image' ? '📷 Photo' : data.type === 'video' ? '🎥 Video' : data.type === 'audio' ? '🎤 Voice message' : data.message || '';
         await roomService.updateRoomLastMessage(data.roomId, lastMsgText, data.sender);
 
         // Increment unread count for other participants

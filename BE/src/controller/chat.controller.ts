@@ -157,7 +157,8 @@ export default class ChatController {
     const receiver = receiverObj ? ((receiverObj as any)._id || receiverObj).toString() : undefined;
 
     const isVideo = file.mimetype.startsWith('video');
-    const type = isVideo ? 'video' : 'image';
+    const isAudio = file.mimetype.startsWith('audio');
+    const type = isVideo ? 'video' : isAudio ? 'audio' : 'image';
 
     const newMsg = await messageService.sendMessage({
       sender: userId!,
@@ -178,6 +179,7 @@ export default class ChatController {
       const isOnline = await messageService.isUserOnline(receiver);
       if (isOnline) {
         await messageService.markAsDelivered(newMsg._id.toString());
+        // Ensure roomId is included in the delivery receipt
         io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
       }
     }
@@ -226,6 +228,7 @@ export default class ChatController {
     if (roomId) {
       io.to(roomId).emit("messages_read", { messageIds, readBy: userId, roomId });
     } else {
+      // Fallback if roomId is missing
       io.emit("messages_read", { messageIds, readBy: userId });
     }
 

@@ -310,7 +310,10 @@ export default function MessageWindow() {
 
   const startVideoRecording = () => {
     if (cameraStream) {
-      const mediaRecorder = new MediaRecorder(cameraStream);
+      const mimeTypes = ["video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+      const supportedType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
+
+      const mediaRecorder = new MediaRecorder(cameraStream, supportedType ? { mimeType: supportedType } : {});
       videoMediaRecorderRef.current = mediaRecorder;
       videoChunksRef.current = [];
 
@@ -321,8 +324,10 @@ export default function MessageWindow() {
       };
 
       mediaRecorder.onstop = () => {
-        const videoBlob = new Blob(videoChunksRef.current, { type: "video/mp4" });
-        const file = new File([videoBlob], `video-${Date.now()}.mp4`, { type: "video/mp4" });
+        const mimeType = videoMediaRecorderRef.current?.mimeType || "video/mp4";
+        const extension = mimeType.split('/')[1].split(';')[0] || 'mp4';
+        const videoBlob = new Blob(videoChunksRef.current, { type: mimeType });
+        const file = new File([videoBlob], `video-${Date.now()}.${extension}`, { type: mimeType });
         sendMedia(activeRoomId!, file);
         closeCamera();
       };
@@ -354,12 +359,8 @@ export default function MessageWindow() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64Audio = reader.result as string;
-          sendMessage(activeRoomId!, base64Audio);
-        };
+        const file = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
+        sendMedia(activeRoomId!, file);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -399,7 +400,7 @@ export default function MessageWindow() {
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -699,7 +700,7 @@ export default function MessageWindow() {
                   }}
                 >
                   <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {msg.type === 'image' ? (
+                    {msg.type === 'image' || (msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp'))) ? (
                       <Box sx={{ position: 'relative' }}>
                         <Box
                           component="img"
@@ -714,22 +715,24 @@ export default function MessageWindow() {
                           }}
                           onClick={() => window.open(msg.mediaUrl, '_blank')}
                         />
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
-                          sx={{
-                            position: 'absolute',
-                            bottom: 8,
-                            right: 8,
-                            bgcolor: 'rgba(0,0,0,0.5)',
-                            color: 'white',
-                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
-                          }}
-                        >
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
+                        {!isMe && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
+                            sx={{
+                              position: 'absolute',
+                              bottom: 8,
+                              right: 8,
+                              bgcolor: 'rgba(0,0,0,0.5)',
+                              color: 'white',
+                              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
+                            }}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </Box>
-                    ) : msg.type === 'video' ? (
+                    ) : msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.includes('.mp4') || msg.mediaUrl.includes('.mov') || msg.mediaUrl.includes('.avi') || msg.mediaUrl.includes('.webm'))) ? (
                       <Box sx={{ position: 'relative' }}>
                         <Box
                           component="video"
@@ -742,54 +745,37 @@ export default function MessageWindow() {
                             display: 'block'
                           }}
                         />
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDownload(msg.mediaUrl!, `video-${msg._id}.mp4`)}
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            bgcolor: 'rgba(0,0,0,0.5)',
-                            color: 'white',
-                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                            zIndex: 1
-                          }}
-                        >
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
+                        {!isMe && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDownload(msg.mediaUrl!, `video-${msg._id}.mp4`)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              bgcolor: 'rgba(0,0,0,0.5)',
+                              color: 'white',
+                              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                              zIndex: 1
+                            }}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </Box>
-                    ) : msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp')) ? (
-                      <Box sx={{ position: 'relative' }}>
-                        <Box
-                          component="img"
-                          src={msg.mediaUrl}
-                          alt="Shared image"
-                          sx={{
-                            width: '100%',
-                            maxWidth: '300px',
-                            borderRadius: '12px',
-                            display: 'block',
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => window.open(msg.mediaUrl, '_blank')}
-                        />
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
-                          sx={{
-                            position: 'absolute',
-                            bottom: 8,
-                            right: 8,
-                            bgcolor: 'rgba(0,0,0,0.5)',
-                            color: 'white',
-                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
-                          }}
-                        >
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
+                    ) : msg.type === 'audio' || msg.message?.startsWith("data:audio/") ? (
+                      <CustomAudioPlayer src={msg.mediaUrl || msg.message} isMe={isMe} />
+                    ) : msg.mediaUrl ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Media file: {msg.mediaUrl.split('/').pop()}
+                        </Typography>
+                        {!isMe && (
+                          <IconButton size="small" onClick={() => handleDownload(msg.mediaUrl!, 'file')}>
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </Box>
-                    ) : msg.message?.startsWith("data:audio/") ? (
-                      <CustomAudioPlayer src={msg.message} isMe={isMe} />
                     ) : (
                       msg.message
                     )}
@@ -820,9 +806,9 @@ export default function MessageWindow() {
                         <DoneIcon
                           sx={{ fontSize: 14, color: "inherit", opacity: 0.5 }}
                         />
-                      ) : msg.read ? (
+                      ) : (msg.read || msg.readAt) ? (
                         <DoneAllIcon sx={{ fontSize: 14, color: "#00e5ff", filter: 'drop-shadow(0 0 2px rgba(0,229,255,0.5))' }} />
-                      ) : msg.delivered ? (
+                      ) : (msg.delivered || msg.deliveredAt) ? (
                         <DoneAllIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />
                       ) : (
                         <DoneIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />

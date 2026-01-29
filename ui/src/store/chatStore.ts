@@ -10,10 +10,12 @@ interface Message {
   sender: string;
   roomId: string;
   message: string;
-  type?: 'text' | 'image' | 'video';
+  type?: 'text' | 'image' | 'video' | 'audio';
   mediaUrl?: string;
   read: boolean;
+  readAt?: string;
   delivered?: boolean;
+  deliveredAt?: string;
   createdAt: string;
   tempId?: string;
   pending?: boolean;
@@ -280,16 +282,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .map((m) => m._id);
 
       // Update local state immediately to avoid race conditions
-      set((state) => ({
-        rooms: state.rooms.map((r) =>
-          r._id === roomId ? { ...r, unreadCount: 0 } : r,
-        ),
-        messages: state.messages.map((m) =>
+      set((state) => {
+        const newMessages = state.messages.map((m) =>
           m.roomId === roomId && m.sender !== useAuthStore.getState().user?.id
             ? { ...m, read: true }
-            : m,
-        ),
-      }));
+            : m
+        );
+
+        const newCache = { ...state.messagesCache };
+        if (newCache[roomId]) {
+          newCache[roomId] = newCache[roomId].map((m) =>
+            m.sender !== useAuthStore.getState().user?.id ? { ...m, read: true } : m
+          );
+        }
+
+        return {
+          rooms: state.rooms.map((r) =>
+            r._id === roomId ? { ...r, unreadCount: 0 } : r
+          ),
+          messages: newMessages,
+          messagesCache: newCache,
+        };
+      });
 
       if (unreadMessageIds.length > 0) {
         await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
@@ -383,6 +397,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // 2. Update messages list
         let newMessages = [...state.messages];
         if (message.roomId === activeRoomId) {
+          if (message.sender !== currentUserId) {
+            message.read = true;
+          }
           const pendingIndex = state.messages.findIndex(
             (m) =>
               m.pending &&
@@ -407,7 +424,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               if (r._id === message.roomId) {
                 const isMe = message.sender === currentUserId;
                 const isRoomActive = message.roomId === activeRoomId;
-                const lastMessagePreview = message.type === 'image' ? '📷 Photo' : message.type === 'video' ? '🎥 Video' : message.message;
+                const lastMessagePreview = message.type === 'image' ? '📷 Photo' : message.type === 'video' ? '🎥 Video' : message.type === 'audio' ? '🎤 Voice message' : message.message;
 
                 return {
                   ...r,
@@ -435,6 +452,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         let newCacheForRoom = [...cacheForRoom];
 
         if (!isDuplicateInCache) {
+          if (message.roomId === activeRoomId && message.sender !== currentUserId) {
+            message.read = true;
+          }
           // Handle pending in cache
           const pendingIndexCache = cacheForRoom.findIndex(
             (m) =>

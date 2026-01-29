@@ -58,7 +58,7 @@ class MessageRepository {
         return ChatMessage.updateMany(
             {
                 _id: { $in: messageIds },
-                receiver: receiverId,
+                sender: { $ne: receiverId },
                 read: false
             },
             {
@@ -72,7 +72,7 @@ class MessageRepository {
         return ChatMessage.updateMany(
             {
                 roomId,
-                receiver: receiverId,
+                sender: { $ne: receiverId },
                 read: false
             },
             {
