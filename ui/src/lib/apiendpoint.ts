@@ -15,6 +15,10 @@ export const API_ENDPOINTS = {
         READ: (roomId: string) => `/chat/rooms/${roomId}/read`,
         READ_MESSAGES: '/chat/messages/read',
         UNREAD: '/chat/unread',
+        DELETE_MESSAGE: '/chat/messages/:messageId',
+        STAR_MESSAGE: '/chat/messages/:messageId/star',
+        STARRED_MESSAGES: (roomId: string) => `/chat/rooms/${roomId}/starred`,
+        ALL_STARRED_MESSAGES: '/chat/starred',
     },
     ANALYTICS: {
         DASHBOARD: '/analytics/dashboard',

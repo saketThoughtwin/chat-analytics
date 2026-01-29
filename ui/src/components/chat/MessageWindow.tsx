@@ -13,6 +13,14 @@ import {
   CircularProgress,
   Backdrop,
   Popover,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
@@ -31,6 +39,9 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import StarIcon from "@mui/icons-material/Star";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
@@ -241,6 +252,8 @@ export default function MessageWindow() {
     hasMore,
     loadMoreMessages,
     sendMedia,
+    deleteMessage,
+    toggleStarMessage,
   } = useChatStore();
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
@@ -264,6 +277,56 @@ export default function MessageWindow() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
+
+  // Message Menu State
+  const [messageMenuAnchor, setMessageMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const handleMessageMenuOpen = (event: React.MouseEvent<HTMLElement>, messageId: string) => {
+    event.stopPropagation();
+    setMessageMenuAnchor(event.currentTarget);
+    setSelectedMessageId(messageId);
+  };
+
+  const handleMessageMenuClose = () => {
+    setMessageMenuAnchor(null);
+    setSelectedMessageId(null);
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+    setMessageMenuAnchor(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (selectedMessageId) {
+      await deleteMessage(selectedMessageId);
+    }
+    setDeleteDialogOpen(false);
+    setSelectedMessageId(null);
+  };
+
+  const handleStarClick = async () => {
+    if (selectedMessageId) {
+      const message = messages.find(m => m._id === selectedMessageId);
+      if (message) {
+        await toggleStarMessage(selectedMessageId, !message.starred);
+      }
+    }
+    handleMessageMenuClose();
+  };
+
+  const getDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString();
+  };
 
   const openCamera = async () => {
     try {
@@ -670,152 +733,217 @@ export default function MessageWindow() {
           </Box>
         )}
         <List sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {messages?.map((msg) => {
+          {messages?.map((msg, index) => {
             const isMe = msg.sender === currentUser?.id;
+            const showDateSeparator = index === 0 || getDateLabel(msg.createdAt) !== getDateLabel(messages[index - 1].createdAt);
+
             return (
-              <ListItem
-                key={msg._id}
-                sx={{
-                  flexDirection: "column",
-                  alignItems: isMe ? "flex-end" : "flex-start",
-                  p: 0,
-                  width: '100%'
-                }}
-              >
-                <Paper
-                  elevation={0}
+              <React.Fragment key={msg._id}>
+                {showDateSeparator && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        bgcolor: 'rgba(0,0,0,0.05)',
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" fontWeight="500">
+                        {getDateLabel(msg.createdAt)}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                )}
+                <ListItem
                   sx={{
-                    p: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? '6px 12px' : '10px 16px',
-                    maxWidth: "70%",
-                    minWidth: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? { xs: '190px', sm: '220px' } : 'auto',
-                    // Gradient for me, slightly dimmer white/gray for them
-                    background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
-                    color: isMe ? 'white' : '#1e293b',
-                    borderRadius: '20px', // Pill shape
-                    borderBottomRightRadius: isMe ? '4px' : '20px',
-                    borderBottomLeftRadius: isMe ? '20px' : '4px',
-                    boxShadow: isMe ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)', // Softer shadow
-                    border: isMe ? 'none' : '1px solid rgba(255, 243, 224, 0.5)', // Subtle border for received
-                    overflow: 'hidden'
+                    flexDirection: "column",
+                    alignItems: isMe ? "flex-end" : "flex-start",
+                    p: 0,
+                    width: '100%',
+                    position: 'relative',
+                    '&:hover .message-actions': { opacity: 1 }
                   }}
                 >
-                  <Box sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {msg.type === 'image' || (msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp'))) ? (
-                      <Box sx={{ position: 'relative' }}>
-                        <Box
-                          component="img"
-                          src={msg.mediaUrl}
-                          alt="Shared image"
-                          sx={{
-                            width: '100%',
-                            maxWidth: '300px',
-                            borderRadius: '12px',
-                            display: 'block',
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => window.open(msg.mediaUrl, '_blank')}
-                        />
-                        {!isMe && (
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
-                            sx={{
-                              position: 'absolute',
-                              bottom: 8,
-                              right: 8,
-                              bgcolor: 'rgba(0,0,0,0.5)',
-                              color: 'white',
-                              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
-                            }}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    ) : (msg.type === 'audio' || msg.message?.startsWith("data:audio/") || (msg.mediaUrl && msg.mediaUrl.includes('voice-note'))) ? (
-                      <CustomAudioPlayer src={msg.mediaUrl || msg.message} isMe={isMe} />
-                    ) : msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.includes('.mp4') || msg.mediaUrl.includes('.mov') || msg.mediaUrl.includes('.avi') || (msg.mediaUrl.includes('.webm') && !msg.mediaUrl.includes('voice-note')))) ? (
-                      <Box sx={{ position: 'relative' }}>
-                        <Box
-                          component="video"
-                          src={msg.mediaUrl}
-                          controls
-                          sx={{
-                            width: '100%',
-                            maxWidth: '300px',
-                            borderRadius: '12px',
-                            display: 'block'
-                          }}
-                        />
-                        {!isMe && (
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDownload(msg.mediaUrl!, `video-${msg._id}.mp4`)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              bgcolor: 'rgba(0,0,0,0.5)',
-                              color: 'white',
-                              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                              zIndex: 1
-                            }}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    ) : msg.mediaUrl ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Media file: {msg.mediaUrl.split('/').pop()}
-                        </Typography>
-                        {!isMe && (
-                          <IconButton size="small" onClick={() => handleDownload(msg.mediaUrl!, 'file')}>
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    ) : (
-                      msg.message
-                    )}
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
-                      mt: 0.5,
-                      gap: 0.5,
-                      minWidth: 60,
-                      opacity: 0.8
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="inherit"
-                      sx={{ fontSize: '0.7rem' }}
+                  <Box sx={{ display: 'flex', alignItems: 'center', maxWidth: '80%', flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                    {/* Message Actions (3 dots) */}
+                    <Box
+                      className="message-actions"
+                      sx={{
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        mx: 1
+                      }}
                     >
-                      {new Date(msg.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </Typography>
-                    {isMe &&
-                      (msg.pending ? (
-                        <DoneIcon
-                          sx={{ fontSize: 14, color: "inherit", opacity: 0.5 }}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMessageMenuOpen(e, msg._id)}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? '6px 12px' : '10px 16px',
+                        minWidth: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? { xs: '190px', sm: '220px' } : 'auto',
+                        // Gradient for me, slightly dimmer white/gray for them
+                        background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
+                        color: isMe ? 'white' : '#1e293b',
+                        borderRadius: '20px', // Pill shape
+                        borderBottomRightRadius: isMe ? '4px' : '20px',
+                        borderBottomLeftRadius: isMe ? '20px' : '4px',
+                        boxShadow: isMe ? '0 4px 15px rgba(99, 102, 241, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)', // Softer shadow
+                        border: isMe ? 'none' : '1px solid rgba(255, 243, 224, 0.5)', // Subtle border for received
+                        overflow: 'hidden',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Star Icon */}
+                      {msg.starred && (
+                        <StarIcon
+                          sx={{
+                            position: 'absolute',
+                            top: -8,
+                            right: isMe ? 'auto' : -8,
+                            left: isMe ? -8 : 'auto',
+                            fontSize: 16,
+                            color: '#fbbf24',
+                            zIndex: 1,
+                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                          }}
                         />
-                      ) : (msg.read || msg.readAt) ? (
-                        <DoneAllIcon sx={{ fontSize: 14, color: "#00e5ff", filter: 'drop-shadow(0 0 2px rgba(0,229,255,0.5))' }} />
-                      ) : (msg.delivered || msg.deliveredAt) ? (
-                        <DoneAllIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />
-                      ) : (
-                        <DoneIcon sx={{ fontSize: 14, color: "inherit", opacity: 0.8 }} />
-                      ))}
+                      )}
+
+                      <Box sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
+                        {msg.deleted ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontStyle: 'italic', opacity: 0.7 }}>
+                            <DeleteIcon fontSize="small" />
+                            <Typography variant="body2">This message was deleted</Typography>
+                          </Box>
+                        ) : (
+                          <>
+                            {msg.type === 'image' || (msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp'))) ? (
+                              <Box sx={{ position: 'relative' }}>
+                                <Box
+                                  component="img"
+                                  src={msg.mediaUrl}
+                                  alt="Shared image"
+                                  sx={{
+                                    width: '100%',
+                                    maxWidth: '300px',
+                                    borderRadius: '12px',
+                                    display: 'block',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={() => window.open(msg.mediaUrl, '_blank')}
+                                />
+                                {!isMe && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
+                                    sx={{
+                                      position: 'absolute',
+                                      bottom: 8,
+                                      right: 8,
+                                      bgcolor: 'rgba(0,0,0,0.5)',
+                                      color: 'white',
+                                      '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
+                                    }}
+                                  >
+                                    <DownloadIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            ) : (msg.type === 'audio' || msg.message?.startsWith("data:audio/") || (msg.mediaUrl && msg.mediaUrl.includes('voice-note'))) ? (
+                              <CustomAudioPlayer src={msg.mediaUrl || msg.message} isMe={isMe} />
+                            ) : msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.includes('.mp4') || msg.mediaUrl.includes('.mov') || msg.mediaUrl.includes('.avi') || (msg.mediaUrl.includes('.webm') && !msg.mediaUrl.includes('voice-note')))) ? (
+                              <Box sx={{ position: 'relative' }}>
+                                <Box
+                                  component="video"
+                                  src={msg.mediaUrl}
+                                  controls
+                                  sx={{
+                                    width: '100%',
+                                    maxWidth: '300px',
+                                    borderRadius: '12px',
+                                    display: 'block'
+                                  }}
+                                />
+                                {!isMe && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDownload(msg.mediaUrl!, `video-${msg._id}.mp4`)}
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 8,
+                                      right: 8,
+                                      bgcolor: 'rgba(0,0,0,0.5)',
+                                      color: 'white',
+                                      '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                      zIndex: 1
+                                    }}
+                                  >
+                                    <DownloadIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            ) : msg.mediaUrl ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Media file: {msg.mediaUrl.split('/').pop()}
+                                </Typography>
+                                {!isMe && (
+                                  <IconButton size="small" onClick={() => handleDownload(msg.mediaUrl!, 'file')}>
+                                    <DownloadIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            ) : (
+                              msg.message
+                            )}
+                          </>
+                        )}
+                      </Box>
+                      {!msg.deleted && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-end",
+                            mt: 0.5,
+                            gap: 0.5,
+                            minWidth: 60,
+                            opacity: 0.8
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            color="inherit"
+                            sx={{ fontSize: '0.7rem' }}
+                          >
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Typography>
+                          {isMe && (
+                            msg.read ? (
+                              <DoneAllIcon sx={{ fontSize: 14, color: '#4ade80' }} />
+                            ) : msg.delivered ? (
+                              <DoneAllIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }} />
+                            ) : (
+                              <DoneIcon sx={{ fontSize: 14 }} />
+                            )
+                          )}
+                        </Box>
+                      )}
+                    </Paper>
                   </Box>
-                </Paper>
-              </ListItem>
+                </ListItem>
+              </React.Fragment>
             );
           })}
           <div ref={messagesEndRef} />
@@ -1055,6 +1183,57 @@ export default function MessageWindow() {
           </Typography>
         </Box>
       )}
+      {/* Message Menu */}
+      <Menu
+        anchorEl={messageMenuAnchor}
+        open={Boolean(messageMenuAnchor)}
+        onClose={handleMessageMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          elevation: 3,
+          sx: { borderRadius: 2, minWidth: 150 }
+        }}
+      >
+        <MenuItem onClick={handleStarClick}>
+          <StarIcon fontSize="small" sx={{ mr: 1, color: '#fbbf24' }} />
+          {selectedMessageId && messages.find(m => m._id === selectedMessageId)?.starred ? 'Unstar' : 'Star Message'}
+        </MenuItem>
+        <MenuItem onClick={handleDeleteClick} sx={{ color: '#ef4444' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        PaperProps={{
+          sx: { borderRadius: 3 }
+        }}
+      >
+        <DialogTitle>Delete Message?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this message? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit" sx={{ borderRadius: 2 }}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" sx={{ borderRadius: 2, boxShadow: 'none' }}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

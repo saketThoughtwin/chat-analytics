@@ -162,6 +162,27 @@ class MessageService {
     async deleteMessagesByRoomId(roomId: string): Promise<void> {
         await messageRepository.deleteByRoomId(roomId);
     }
+
+    /**
+     * Toggle star status of a message
+     */
+    async toggleStarMessage(messageId: string, starred: boolean): Promise<IChatMessage | null> {
+        return messageRepository.toggleStar(messageId, starred);
+    }
+
+    /**
+     * Get starred messages for a room
+     */
+    async getStarredMessages(roomId: string): Promise<IChatMessage[]> {
+        return messageRepository.findStarredByRoomId(roomId);
+    }
+
+    /**
+     * Get all starred messages for a user
+     */
+    async getAllStarredMessages(userId: string): Promise<IChatMessage[]> {
+        return messageRepository.findStarredByUser(userId);
+    }
 }
 
 export default new MessageService();

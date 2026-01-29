@@ -28,6 +28,12 @@ router.put(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.READ_ROOM}`, a
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.UNREAD}`, authMiddleware, asyncHandler(ChatController.getUnreadCount));
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_UNREAD}`, authMiddleware, asyncHandler(ChatController.getRoomUnreadCount));
 
+// Message actions
+router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.DELETE_MESSAGE}`, authMiddleware, asyncHandler(ChatController.deleteMessage));
+router.put(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.STAR_MESSAGE}`, authMiddleware, asyncHandler(ChatController.toggleStarMessage));
+router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.STARRED_MESSAGES}`, authMiddleware, asyncHandler(ChatController.getStarredMessages));
+router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ALL_STARRED_MESSAGES}`, authMiddleware, asyncHandler(ChatController.getAllStarredMessages));
+
 // Legacy endpoint
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.CONVERSATION}`, authMiddleware, asyncHandler(ChatController.getConversation));
 

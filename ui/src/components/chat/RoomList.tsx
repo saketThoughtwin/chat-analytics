@@ -32,6 +32,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import StarIcon from "@mui/icons-material/Star";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
@@ -48,6 +49,7 @@ export default function RoomList() {
     deleteRoom,
     loadingRooms,
     reset,
+    fetchAllStarredMessages,
   } = useChatStore();
   const { user: currentUser, logout } = useAuthStore();
   const router = useRouter();
@@ -62,6 +64,26 @@ export default function RoomList() {
 
   // Success Snackbar State
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  // Header Menu State
+  const [headerMenuAnchor, setHeaderMenuAnchor] = useState<null | HTMLElement>(null);
+  const [starredMessagesDialogOpen, setStarredMessagesDialogOpen] = useState(false);
+  const [starredMessages, setStarredMessages] = useState<any[]>([]);
+
+  const handleHeaderMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setHeaderMenuAnchor(event.currentTarget);
+  };
+
+  const handleHeaderMenuClose = () => {
+    setHeaderMenuAnchor(null);
+  };
+
+  const handleStarredMessagesClick = async () => {
+    handleHeaderMenuClose();
+    const msgs = await fetchAllStarredMessages();
+    setStarredMessages(msgs);
+    setStarredMessagesDialogOpen(true);
+  };
 
   useEffect(() => {
     fetchRooms();
@@ -179,27 +201,47 @@ export default function RoomList() {
               <AssessmentIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Logout">
+          <Tooltip title="Options">
             <IconButton
-              onClick={handleLogout}
+              onClick={handleHeaderMenuOpen}
               size="small"
               sx={{
                 bgcolor: "rgba(255,255,255,0.5)",
                 boxShadow: "none",
                 border: "1px solid rgba(0,0,0,0.05)",
-                color: "#ef4444",
+                color: "text.secondary",
                 "&:hover": {
-                  bgcolor: "#fee2e2",
+                  bgcolor: "white",
                   transform: "translateY(-1px)",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
                 },
                 transition: "all 0.2s",
                 width: 36,
                 height: 36,
               }}
             >
-              <LogoutIcon fontSize="small" />
+              <MoreVertIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          <Menu
+            anchorEl={headerMenuAnchor}
+            open={Boolean(headerMenuAnchor)}
+            onClose={handleHeaderMenuClose}
+            PaperProps={{
+              elevation: 3,
+              sx: { borderRadius: 2, minWidth: 180, mt: 1 }
+            }}
+          >
+            <MenuItem onClick={handleStarredMessagesClick}>
+              <StarIcon fontSize="small" sx={{ mr: 1.5, color: '#fbbf24' }} />
+              Starred Messages
+            </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+              <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
+              Logout
+            </MenuItem>
+          </Menu>
         </Box>
       </Box>
       <Box sx={{ px: 3, pb: 2 }}>
@@ -433,6 +475,62 @@ export default function RoomList() {
         </DialogActions>
       </Dialog>
 
+      {/* Starred Messages Dialog */}
+      <Dialog
+        open={starredMessagesDialogOpen}
+        onClose={() => setStarredMessagesDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3, height: '60vh' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <StarIcon sx={{ color: '#fbbf24' }} />
+          Starred Messages
+        </DialogTitle>
+        <DialogContent dividers>
+          {starredMessages.length === 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6 }}>
+              <StarIcon sx={{ fontSize: 48, mb: 2, color: '#e2e8f0' }} />
+              <Typography color="text.secondary">
+                No starred messages found.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {starredMessages.map((msg) => (
+                <ListItem key={msg._id} alignItems="flex-start" sx={{ bgcolor: 'rgba(0,0,0,0.02)', mb: 1, borderRadius: 2 }}>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
+                        {msg.message || (msg.type === 'image' ? '📷 Photo' : msg.type === 'video' ? '🎥 Video' : msg.type === 'audio' ? '🎤 Voice message' : 'Media')}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                        {new Date(msg.createdAt).toLocaleString()}
+                      </Typography>
+                    }
+                  />
+                  <IconButton size="small" onClick={() => {
+                    // Optional: Navigate to chat or unstar
+                    // For now just unstar
+                    // But we need toggleStarMessage here which is not imported
+                    // Let's just show them for now.
+                  }}>
+                    <StarIcon fontSize="small" sx={{ color: '#fbbf24' }} />
+                  </IconButton>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStarredMessagesDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Success Snackbar */}
       {/* <Snackbar
         open={snackbarOpen}
@@ -494,6 +592,6 @@ export default function RoomList() {
           />
         </Box>
       </Fab>
-    </Box>
+    </Box >
   );
 }

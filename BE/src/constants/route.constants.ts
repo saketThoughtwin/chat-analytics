@@ -20,13 +20,17 @@ export const RoutesConstants = {
         DEFAULT: '/chat',
         ROOMS: '/rooms',
         ROOM_BY_ID: '/rooms/:roomId',
-        ROOM_BY_ID_UPLOAD:'/rooms/:roomId/upload', 
+        ROOM_BY_ID_UPLOAD: '/rooms/:roomId/upload',
         MESSAGES: '/rooms/:roomId/messages',
         READ_MESSAGES: '/messages/read',
         READ_ROOM: '/rooms/:roomId/read',
         UNREAD: '/unread',
         ROOM_UNREAD: '/rooms/:roomId/unread',
-        CONVERSATION: '/:withUser'
+        CONVERSATION: '/:withUser',
+        DELETE_MESSAGE: '/messages/:messageId',
+        STAR_MESSAGE: '/messages/:messageId/star',
+        STARRED_MESSAGES: '/rooms/:roomId/starred',
+        ALL_STARRED_MESSAGES: '/starred'
     },
     ANALYTICS: {
         DEFAULT: '/analytics',

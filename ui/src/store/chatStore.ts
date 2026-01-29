@@ -19,6 +19,8 @@ interface Message {
   createdAt: string;
   tempId?: string;
   pending?: boolean;
+  deleted?: boolean;
+  starred?: boolean;
 }
 
 interface Room {
@@ -52,6 +54,9 @@ interface ChatState {
   deleteRoom: (roomId: string) => Promise<void>;
   addLocalMessage: (msg: Message) => void;
   replaceMessage: (tempId: string, newMsg: Message) => void;
+  deleteMessage: (messageId: string) => Promise<void>;
+  toggleStarMessage: (messageId: string, starred: boolean) => Promise<void>;
+  fetchAllStarredMessages: () => Promise<Message[]>;
 
   // Socket event handlers
   initSocketEvents: () => void;
@@ -380,6 +385,64 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       };
     }),
+
+  deleteMessage: async (messageId: string) => {
+    try {
+      await api.delete(API_ENDPOINTS.CHAT.DELETE_MESSAGE.replace(':messageId', messageId));
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId
+            ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+            : m
+        ),
+        // Update cache as well
+        messagesCache: Object.fromEntries(
+          Object.entries(state.messagesCache).map(([roomId, msgs]) => [
+            roomId,
+            msgs.map((m) =>
+              m._id === messageId
+                ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+                : m
+            )
+          ])
+        )
+      }));
+    } catch (error) {
+      console.error("Failed to delete message", error);
+    }
+  },
+
+  toggleStarMessage: async (messageId: string, starred: boolean) => {
+    try {
+      await api.put(API_ENDPOINTS.CHAT.STAR_MESSAGE.replace(':messageId', messageId), { starred });
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? { ...m, starred } : m
+        ),
+        // Update cache as well
+        messagesCache: Object.fromEntries(
+          Object.entries(state.messagesCache).map(([roomId, msgs]) => [
+            roomId,
+            msgs.map((m) =>
+              m._id === messageId ? { ...m, starred } : m
+            )
+          ])
+        )
+      }));
+    } catch (error) {
+      console.error("Failed to toggle star message", error);
+    }
+  },
+
+  fetchAllStarredMessages: async () => {
+    try {
+      const res = await api.get(API_ENDPOINTS.CHAT.ALL_STARRED_MESSAGES);
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch starred messages", error);
+      return [];
+    }
+  },
 
   initSocketEvents: () => {
     const socket = getSocket();
