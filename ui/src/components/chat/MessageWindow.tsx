@@ -111,10 +111,10 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
-      gap: 1,
+      gap: 0.8,
       width: '100%',
-      minWidth: { xs: '200px', sm: '220px' },
-      py: 0.2
+      minWidth: { xs: '180px', sm: '200px' },
+      py: 0.1
     }}>
       <audio
         ref={audioRef}
@@ -143,17 +143,17 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
           onChange={handleSliderChange}
           sx={{
             color: isMe ? 'white' : '#6366f1',
-            height: 3,
-            padding: '11px 0',
+            height: 2,
+            padding: '8px 0',
             '& .MuiSlider-thumb': {
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               transition: '0.3s cubic-bezier(.47,1.64,.41,.8)',
-              '&:before': { boxShadow: '0 2px 12px 0 rgba(0,0,0,0.4)' },
+              '&:before': { boxShadow: '0 2px 8px 0 rgba(0,0,0,0.3)' },
               '&:hover, &.Mui-focusVisible': {
-                boxShadow: `0px 0px 0px 6px ${isMe ? 'rgba(255,255,255,0.16)' : 'rgba(99, 102, 241, 0.16)'}`,
+                boxShadow: `0px 0px 0px 4px ${isMe ? 'rgba(255,255,255,0.16)' : 'rgba(99, 102, 241, 0.16)'}`,
               },
-              '&.Mui-active': { width: 14, height: 14 },
+              '&.Mui-active': { width: 10, height: 10 },
             },
             '& .MuiSlider-rail': { opacity: 0.28 },
           }}
@@ -186,10 +186,10 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
           sx={{
             color: isMe ? 'white' : '#6366f1',
             opacity: 0.8,
-            p: 0.4
+            p: 0.2
           }}
         >
-          {volume === 0 ? <VolumeOffIcon sx={{ fontSize: 14 }} /> : volume < 0.5 ? <VolumeDownIcon sx={{ fontSize: 14 }} /> : <VolumeUpIcon sx={{ fontSize: 14 }} />}
+          {volume === 0 ? <VolumeOffIcon sx={{ fontSize: 12 }} /> : volume < 0.5 ? <VolumeDownIcon sx={{ fontSize: 12 }} /> : <VolumeUpIcon sx={{ fontSize: 12 }} />}
         </IconButton>
 
         <Box sx={{
@@ -207,10 +207,10 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
             step={0.01}
             onChange={handleVolumeChange}
             sx={{
-              width: { xs: 32, sm: 45 },
+              width: { xs: 30, sm: 40 },
               color: isMe ? 'white' : '#6366f1',
               height: 2,
-              mx: 0.5,
+              mx: 0.2,
               '& .MuiSlider-thumb': {
                 width: 6,
                 height: 6,
@@ -685,9 +685,9 @@ export default function MessageWindow() {
                 <Paper
                   elevation={0}
                   sx={{
-                    p: '10px 16px',
+                    p: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? '6px 12px' : '10px 16px',
                     maxWidth: "70%",
-                    minWidth: msg.message?.startsWith("data:audio/") ? { xs: '210px', sm: '250px' } : 'auto',
+                    minWidth: (msg.type === 'audio' || msg.message?.startsWith("data:audio/")) ? { xs: '190px', sm: '220px' } : 'auto',
                     // Gradient for me, slightly dimmer white/gray for them
                     background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
                     color: isMe ? 'white' : '#1e293b',
@@ -699,7 +699,7 @@ export default function MessageWindow() {
                     overflow: 'hidden'
                   }}
                 >
-                  <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
+                  <Box sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
                     {msg.type === 'image' || (msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp'))) ? (
                       <Box sx={{ position: 'relative' }}>
                         <Box
@@ -732,7 +732,9 @@ export default function MessageWindow() {
                           </IconButton>
                         )}
                       </Box>
-                    ) : msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.includes('.mp4') || msg.mediaUrl.includes('.mov') || msg.mediaUrl.includes('.avi') || msg.mediaUrl.includes('.webm'))) ? (
+                    ) : (msg.type === 'audio' || msg.message?.startsWith("data:audio/") || (msg.mediaUrl && msg.mediaUrl.includes('voice-note'))) ? (
+                      <CustomAudioPlayer src={msg.mediaUrl || msg.message} isMe={isMe} />
+                    ) : msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.includes('.mp4') || msg.mediaUrl.includes('.mov') || msg.mediaUrl.includes('.avi') || (msg.mediaUrl.includes('.webm') && !msg.mediaUrl.includes('voice-note')))) ? (
                       <Box sx={{ position: 'relative' }}>
                         <Box
                           component="video"
@@ -763,8 +765,6 @@ export default function MessageWindow() {
                           </IconButton>
                         )}
                       </Box>
-                    ) : msg.type === 'audio' || msg.message?.startsWith("data:audio/") ? (
-                      <CustomAudioPlayer src={msg.mediaUrl || msg.message} isMe={isMe} />
                     ) : msg.mediaUrl ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary">
@@ -779,7 +779,7 @@ export default function MessageWindow() {
                     ) : (
                       msg.message
                     )}
-                  </Typography>
+                  </Box>
                   <Box
                     sx={{
                       display: "flex",
