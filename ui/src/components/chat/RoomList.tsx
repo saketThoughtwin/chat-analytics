@@ -385,6 +385,8 @@ export default function RoomList() {
                           >
                             typing...
                           </span>
+                        ) : (room as any).lastMessagePreview ? (
+                          (room as any).lastMessagePreview
                         ) : (
                           room.lastMessage?.message || "No messages yet"
                         )}

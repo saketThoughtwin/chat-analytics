@@ -5,6 +5,8 @@ export interface IChatMessage extends Document {
   receiver?: string; // For backward compatibility, but roomId is now primary
   roomId: string; // Now required - all messages belong to a room
   message: string;
+  type: 'text' | 'image' | 'video';
+  mediaUrl?: string;
   createdAt: Date;
   deliveredAt?: Date;
   readAt?: Date;
@@ -17,7 +19,9 @@ const ChatSchema = new Schema<IChatMessage>(
     sender: { type: String, required: true, index: true },
     receiver: { type: String }, // Optional for backward compatibility
     roomId: { type: String, required: true, index: true },
-    message: { type: String, required: true },
+    message: { type: String, required: false },
+    type: { type: String, enum: ['text', 'image', 'video'], default: 'text' },
+    mediaUrl: { type: String },
     read: { type: Boolean, default: false },
     deliveredAt: { type: Date },
     readAt: { type: Date },

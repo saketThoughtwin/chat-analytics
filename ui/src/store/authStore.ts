@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
+import { JSON_HEADERS } from '../lib/headers';
 
 interface User {
     id: string;
@@ -42,14 +43,14 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
             sendOTP: async (name: string, email: string) => {
-                await api.post('/auth/send-otp', { name, email });
+                await api.post('/auth/send-otp', { name, email }, { headers: JSON_HEADERS });
             },
             verifyOTP: async (otp: string) => {
                 const { tempSignupData } = get();
                 const response = await api.post('/auth/signup', {
                     ...tempSignupData,
                     otp
-                });
+                }, { headers: JSON_HEADERS });
                 const { user, token } = response.data;
                 set({ user, token, tempSignupData: null });
             },

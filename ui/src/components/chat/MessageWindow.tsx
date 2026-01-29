@@ -27,6 +27,10 @@ import PauseIcon from "@mui/icons-material/Pause";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import VolumeDownIcon from "@mui/icons-material/VolumeDown";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import VideocamIcon from "@mui/icons-material/Videocam";
+import CloseIcon from "@mui/icons-material/Close";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
@@ -236,6 +240,7 @@ export default function MessageWindow() {
     loadingMore,
     hasMore,
     loadMoreMessages,
+    sendMedia,
   } = useChatStore();
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
@@ -251,6 +256,88 @@ export default function MessageWindow() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Camera state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const videoChunksRef = useRef<Blob[]>([]);
+
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Please check permissions.");
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOpen && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [isCameraOpen, cameraStream]);
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraOpen(false);
+    setIsRecordingVideo(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+          sendMedia(activeRoomId!, file);
+          closeCamera();
+        }
+      }, "image/jpeg");
+    }
+  };
+
+  const startVideoRecording = () => {
+    if (cameraStream) {
+      const mediaRecorder = new MediaRecorder(cameraStream);
+      videoMediaRecorderRef.current = mediaRecorder;
+      videoChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          videoChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const videoBlob = new Blob(videoChunksRef.current, { type: "video/mp4" });
+        const file = new File([videoBlob], `video-${Date.now()}.mp4`, { type: "video/mp4" });
+        sendMedia(activeRoomId!, file);
+        closeCamera();
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVideo(true);
+    }
+  };
+
+  const stopVideoRecording = () => {
+    if (videoMediaRecorderRef.current && isRecordingVideo) {
+      videoMediaRecorderRef.current.stop();
+      setIsRecordingVideo(false);
+    }
+  };
 
   const startRecording = async () => {
     try {
@@ -314,6 +401,20 @@ export default function MessageWindow() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleDownload = (url: string, filename: string) => {
+    // For Cloudinary, we can add fl_attachment to force download
+    const downloadUrl = url.includes('cloudinary.com')
+      ? url.replace('/upload/', '/upload/fl_attachment/')
+      : url;
+
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const activeRoom = rooms.find((r) => r._id === activeRoomId);
@@ -585,7 +686,7 @@ export default function MessageWindow() {
                   sx={{
                     p: '10px 16px',
                     maxWidth: "70%",
-                    minWidth: msg.message.startsWith("data:audio/") ? { xs: '210px', sm: '250px' } : 'auto',
+                    minWidth: msg.message?.startsWith("data:audio/") ? { xs: '210px', sm: '250px' } : 'auto',
                     // Gradient for me, slightly dimmer white/gray for them
                     background: isMe ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#fff9f0",
                     color: isMe ? 'white' : '#1e293b',
@@ -598,7 +699,96 @@ export default function MessageWindow() {
                   }}
                 >
                   <Typography variant="body1" sx={{ fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {msg.message.startsWith("data:audio/") ? (
+                    {msg.type === 'image' ? (
+                      <Box sx={{ position: 'relative' }}>
+                        <Box
+                          component="img"
+                          src={msg.mediaUrl}
+                          alt="Shared image"
+                          sx={{
+                            width: '100%',
+                            maxWidth: '300px',
+                            borderRadius: '12px',
+                            display: 'block',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => window.open(msg.mediaUrl, '_blank')}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
+                          sx={{
+                            position: 'absolute',
+                            bottom: 8,
+                            right: 8,
+                            bgcolor: 'rgba(0,0,0,0.5)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
+                          }}
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : msg.type === 'video' ? (
+                      <Box sx={{ position: 'relative' }}>
+                        <Box
+                          component="video"
+                          src={msg.mediaUrl}
+                          controls
+                          sx={{
+                            width: '100%',
+                            maxWidth: '300px',
+                            borderRadius: '12px',
+                            display: 'block'
+                          }}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownload(msg.mediaUrl!, `video-${msg._id}.mp4`)}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            bgcolor: 'rgba(0,0,0,0.5)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                            zIndex: 1
+                          }}
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : msg.mediaUrl && (msg.mediaUrl.includes('.jpg') || msg.mediaUrl.includes('.png') || msg.mediaUrl.includes('.jpeg') || msg.mediaUrl.includes('.webp')) ? (
+                      <Box sx={{ position: 'relative' }}>
+                        <Box
+                          component="img"
+                          src={msg.mediaUrl}
+                          alt="Shared image"
+                          sx={{
+                            width: '100%',
+                            maxWidth: '300px',
+                            borderRadius: '12px',
+                            display: 'block',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => window.open(msg.mediaUrl, '_blank')}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownload(msg.mediaUrl!, `image-${msg._id}.jpg`)}
+                          sx={{
+                            position: 'absolute',
+                            bottom: 8,
+                            right: 8,
+                            bgcolor: 'rgba(0,0,0,0.5)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' }
+                          }}
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : msg.message?.startsWith("data:audio/") ? (
                       <CustomAudioPlayer src={msg.message} isMe={isMe} />
                     ) : (
                       msg.message
@@ -703,6 +893,17 @@ export default function MessageWindow() {
             </Box>
           )}
           <IconButton
+            onClick={openCamera}
+            disabled={isRecording}
+            sx={{
+              color: 'text.secondary',
+              transition: 'all 0.2s',
+              '&:hover': { color: '#6366f1' }
+            }}
+          >
+            <CameraAltIcon fontSize="medium" />
+          </IconButton>
+          <IconButton
             onClick={handleEmojiOpen}
             disabled={isRecording}
             sx={{
@@ -778,6 +979,96 @@ export default function MessageWindow() {
           )}
         </Box>
       </Box>
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'rgba(0,0,0,0.9)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2
+          }}
+        >
+          <IconButton
+            onClick={closeCamera}
+            sx={{ position: 'absolute', top: 20, right: 20, color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          <Box sx={{ position: 'relative', width: '100%', maxWidth: 640, borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ width: '100%', display: 'block' }}
+            />
+            {isRecordingVideo && (
+              <Box sx={{ position: 'absolute', top: 20, left: 20, display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444', bgcolor: 'rgba(0,0,0,0.5)', px: 1.5, py: 0.5, borderRadius: '20px' }}>
+                <FiberManualRecordIcon sx={{ fontSize: 12, animation: 'pulse 1.5s infinite' }} />
+                <Typography variant="caption" fontWeight="700">REC</Typography>
+              </Box>
+            )}
+          </Box>
+
+          <Box sx={{ mt: 4, display: 'flex', gap: 3 }}>
+            {!isRecordingVideo ? (
+              <>
+                <IconButton
+                  onClick={capturePhoto}
+                  sx={{
+                    bgcolor: 'white',
+                    color: '#1e293b',
+                    width: 64,
+                    height: 64,
+                    '&:hover': { bgcolor: '#f1f5f9' }
+                  }}
+                >
+                  <CameraAltIcon fontSize="large" />
+                </IconButton>
+                <IconButton
+                  onClick={startVideoRecording}
+                  sx={{
+                    bgcolor: '#ef4444',
+                    color: 'white',
+                    width: 64,
+                    height: 64,
+                    '&:hover': { bgcolor: '#dc2626' }
+                  }}
+                >
+                  <VideocamIcon fontSize="large" />
+                </IconButton>
+              </>
+            ) : (
+              <IconButton
+                onClick={stopVideoRecording}
+                sx={{
+                  bgcolor: 'white',
+                  color: '#ef4444',
+                  width: 64,
+                  height: 64,
+                  '&:hover': { bgcolor: '#f1f5f9' }
+                }}
+              >
+                <StopIcon fontSize="large" />
+              </IconButton>
+            )}
+          </Box>
+          <Typography sx={{ color: 'white', mt: 2, opacity: 0.7 }}>
+            {isRecordingVideo ? "Recording video..." : "Capture a photo or record a video"}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

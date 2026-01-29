@@ -21,6 +21,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../lib/apiendpoint';
+import { JSON_HEADERS } from '../../lib/headers';
 import { useChatStore } from '../../store/chatStore';
 
 interface User {
@@ -71,7 +72,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
     const handleCreateRoom = async (otherUserId: string) => {
         setCreating(true);
         try {
-            const response = await api.post(API_ENDPOINTS.CHAT.ROOMS, { otherUserId });
+            const response = await api.post(API_ENDPOINTS.CHAT.ROOMS, { otherUserId }, { headers: JSON_HEADERS });
             const newRoom = response.data;
             await fetchRooms();
             setActiveRoom(newRoom._id);
@@ -137,7 +138,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                     <CircularProgress color="inherit" />
-                
+
                 </Box>
             </Backdrop>
         </Dialog>

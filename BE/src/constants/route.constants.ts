@@ -20,6 +20,7 @@ export const RoutesConstants = {
         DEFAULT: '/chat',
         ROOMS: '/rooms',
         ROOM_BY_ID: '/rooms/:roomId',
+        ROOM_BY_ID_UPLOAD:'/rooms/:roomId/upload', 
         MESSAGES: '/rooms/:roomId/messages',
         READ_MESSAGES: '/messages/read',
         READ_ROOM: '/rooms/:roomId/read',

@@ -40,9 +40,22 @@ export default class ChatController {
         ? room.unreadCounts.get(userId!) || 0
         : (room.unreadCounts as any)?.[userId!] || 0;
 
+      // Determine last message preview for improved RoomList
+      let lastMessagePreview = "No messages yet";
+      if (room.lastMessage) {
+        if ((room.lastMessage as any).type === 'image') {
+          lastMessagePreview = '📷 Photo';
+        } else if ((room.lastMessage as any).type === 'video') {
+          lastMessagePreview = '🎥 Video';
+        } else {
+          lastMessagePreview = (room.lastMessage as any).message;
+        }
+      }
+
       return {
         ...room,
-        unreadCount
+        unreadCount,
+        lastMessagePreview // Add the new preview field
       };
     });
 
@@ -107,6 +120,61 @@ export default class ChatController {
     if (receiver) {
       io.to(receiver).emit("receive_message", newMsg);
 
+      const isOnline = await messageService.isUserOnline(receiver);
+      if (isOnline) {
+        await messageService.markAsDelivered(newMsg._id.toString());
+        io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+      }
+    }
+
+    res.status(201).json(newMsg);
+  }
+
+  /**
+   * Send a media message (image/video) to a room
+   * POST /api/chat/rooms/:roomId/upload
+   */
+  static async sendMediaMessage(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+    const file = req.file;
+
+    if (!file) throw new ApiError(400, "File is required");
+
+    // Verify room exists and user is a participant
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+
+    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+      throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    // Determine receiver for direct chats
+    const receiverObj =
+      room.type === "direct"
+        ? room.participants.find((p: any) => (p._id || p).toString() !== userId)
+        : undefined;
+    const receiver = receiverObj ? ((receiverObj as any)._id || receiverObj).toString() : undefined;
+
+    const isVideo = file.mimetype.startsWith('video');
+    const type = isVideo ? 'video' : 'image';
+
+    const newMsg = await messageService.sendMessage({
+      sender: userId!,
+      roomId,
+      message: '',
+      type,
+      mediaUrl: (file as any).path, // Cloudinary URL is stored in 'path' by multer-storage-cloudinary
+      receiver,
+    });
+
+    console.log(`Media message sent: ${type}, URL: ${(file as any).path}`);
+
+    // Emit to room via socket
+    io.to(roomId).emit("receive_message", newMsg);
+
+    if (receiver) {
+      io.to(receiver).emit("receive_message", newMsg);
       const isOnline = await messageService.isUserOnline(receiver);
       if (isOnline) {
         await messageService.markAsDelivered(newMsg._id.toString());

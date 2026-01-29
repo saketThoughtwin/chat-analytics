@@ -11,7 +11,9 @@ interface PaginationOptions {
 interface MessageData {
     sender: string;
     roomId: string;
-    message: string;
+    message?: string;
+    type?: 'text' | 'image' | 'video';
+    mediaUrl?: string;
     receiver?: string;
 }
 
@@ -24,13 +26,16 @@ class MessageService {
             sender: data.sender,
             receiver: data.receiver,
             roomId: data.roomId,
-            message: data.message,
+            message: data.message || '',
+            type: data.type || 'text',
+            mediaUrl: data.mediaUrl,
             read: false,
             deleted: false
         });
 
         // Update room's last message
-        await roomService.updateRoomLastMessage(data.roomId, data.message, data.sender);
+        const lastMsgText = data.type === 'image' ? '📷 Photo' : data.type === 'video' ? '🎥 Video' : data.message || '';
+        await roomService.updateRoomLastMessage(data.roomId, lastMsgText, data.sender);
 
         // Increment unread count for other participants
         const room = await roomService.getRoomById(data.roomId);

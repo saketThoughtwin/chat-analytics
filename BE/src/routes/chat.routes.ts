@@ -5,6 +5,7 @@ import { authMiddleware } from "@middlewares/auth.middleware";
 import { rateLimitMiddleware } from "@middlewares/rateLimit.middleware";
 import { asyncHandler } from "@middlewares/asyncHandlerMiddleware";
 import { RoutesConstants } from "../constants/route.constants";
+import { upload } from "../services/cloudinary.service";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}
 
 // Messaging
 router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.MESSAGES}`, authMiddleware, rateLimitMiddleware, asyncHandler(ChatController.sendMessage));
+router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID_UPLOAD}`, authMiddleware, upload.single('file'), asyncHandler(ChatController.sendMediaMessage));
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.MESSAGES}`, authMiddleware, asyncHandler(ChatController.getMessages));
 
 // Read receipts

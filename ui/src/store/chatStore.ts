@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { getSocket } from "../lib/socket";
 import api from "../lib/api";
 import { API_ENDPOINTS } from "../lib/apiendpoint";
+import { JSON_HEADERS, MULTIPART_HEADERS } from "../lib/headers";
 import { useAuthStore } from "./authStore";
 
 interface Message {
@@ -9,6 +10,8 @@ interface Message {
   sender: string;
   roomId: string;
   message: string;
+  type?: 'text' | 'image' | 'video';
+  mediaUrl?: string;
   read: boolean;
   delivered?: boolean;
   createdAt: string;
@@ -42,6 +45,7 @@ interface ChatState {
   fetchMessages: (roomId: string) => Promise<void>;
   loadMoreMessages: (roomId: string) => Promise<void>;
   sendMessage: (roomId: string, content: string) => Promise<void>;
+  sendMedia: (roomId: string, file: File) => Promise<void>;
   markAsRead: (roomId: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
   addLocalMessage: (msg: Message) => void;
@@ -213,13 +217,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const res = await api.post(API_ENDPOINTS.CHAT.MESSAGES(roomId), {
         message: content,
-      });
+      }, { headers: JSON_HEADERS });
       get().replaceMessage(tempId, {
         ...res.data,
         pending: false,
       });
     } catch (error) {
       console.error("Failed to send message", error);
+    }
+  },
+  sendMedia: async (roomId, file) => {
+    const tempId = `temp-${Date.now()}`;
+    const currentUser = useAuthStore.getState().user;
+    const senderId = currentUser?.id || "me";
+
+    const isVideo = file.type.startsWith('video');
+    const type = isVideo ? 'video' : 'image';
+
+    // Create a local preview URL
+    const localUrl = URL.createObjectURL(file);
+
+    get().addLocalMessage({
+      _id: tempId,
+      tempId,
+      roomId,
+      sender: senderId,
+      message: '',
+      type,
+      mediaUrl: localUrl,
+      createdAt: new Date().toISOString(),
+      read: false,
+      pending: true,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await api.post(`${API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(':roomId', roomId)}/upload`, formData, {
+        headers: MULTIPART_HEADERS,
+      });
+
+      get().replaceMessage(tempId, {
+        ...res.data,
+        pending: false,
+      });
+    } catch (error) {
+      console.error("Failed to upload media", error);
     }
   },
 
@@ -251,9 +295,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         await api.put(API_ENDPOINTS.CHAT.READ_MESSAGES, {
           messageIds: unreadMessageIds,
           roomId,
-        });
+        }, { headers: JSON_HEADERS });
       } else {
-        await api.put(API_ENDPOINTS.CHAT.READ(roomId));
+        await api.put(API_ENDPOINTS.CHAT.READ(roomId), {}, { headers: JSON_HEADERS });
       }
     } catch (error) {
       console.error("Failed to mark room as read", error);
@@ -327,6 +371,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const socket = getSocket();
 
     socket.on("receive_message", (message: Message) => {
+      console.log("Socket: receive_message", message);
       const { activeRoomId } = get();
       const currentUserId = useAuthStore.getState().user?.id;
 
@@ -362,10 +407,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
               if (r._id === message.roomId) {
                 const isMe = message.sender === currentUserId;
                 const isRoomActive = message.roomId === activeRoomId;
+                const lastMessagePreview = message.type === 'image' ? '📷 Photo' : message.type === 'video' ? '🎥 Video' : message.message;
 
                 return {
                   ...r,
                   lastMessage: message,
+                  lastMessagePreview,
                   unreadCount:
                     isMe || isRoomActive
                       ? r.unreadCount || 0
