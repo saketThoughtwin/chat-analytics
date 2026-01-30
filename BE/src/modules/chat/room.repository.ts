@@ -69,7 +69,13 @@ class RoomRepository {
 
     async getUnreadCount(roomId: string, userId: string) {
         const room = await Room.findById(roomId).lean();
-        return room?.unreadCounts.get(userId) || 0;
+        if (!room) return 0;
+
+        const unreadCounts = room.unreadCounts as any;
+        if (unreadCounts instanceof Map) {
+            return unreadCounts.get(userId) || 0;
+        }
+        return unreadCounts?.[userId] || 0;
     }
 
     async countByParticipant(userId: string) {

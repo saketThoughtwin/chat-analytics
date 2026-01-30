@@ -8,6 +8,7 @@ export interface IRoom {
         message: string;
         senderId: string;
         timestamp: Date;
+        createdAt?: Date | string;
     };
     unreadCounts: Map<string, number>; // userId -> unread count
     createdAt: Date;

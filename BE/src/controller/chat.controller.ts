@@ -42,7 +42,15 @@ export default class ChatController {
 
       // Determine last message preview for improved RoomList
       let lastMessagePreview = "No messages yet";
+      let lastMessage = room.lastMessage;
+
       if (room.lastMessage) {
+        // Ensure lastMessage has createdAt for frontend consistency
+        lastMessage = {
+          ...room.lastMessage,
+          createdAt: (room.lastMessage as any).timestamp || (room.lastMessage as any).createdAt
+        };
+
         if ((room.lastMessage as any).type === 'image') {
           lastMessagePreview = '📷 Photo';
         } else if ((room.lastMessage as any).type === 'video') {
@@ -54,6 +62,7 @@ export default class ChatController {
 
       return {
         ...room,
+        lastMessage,
         unreadCount,
         lastMessagePreview // Add the new preview field
       };
@@ -77,7 +86,13 @@ export default class ChatController {
       ? room.unreadCounts.get(userId!) || 0
       : (room.unreadCounts as any)?.[userId!] || 0;
 
-    res.json({ ...room, unreadCount });
+    // Ensure lastMessage has createdAt for consistency
+    const lastMessage = room.lastMessage ? {
+      ...room.lastMessage,
+      createdAt: (room.lastMessage as any).timestamp || (room.lastMessage as any).createdAt
+    } : undefined;
+
+    res.json({ ...room, lastMessage, unreadCount });
   }
 
   /**

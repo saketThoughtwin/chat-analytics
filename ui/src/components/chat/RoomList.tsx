@@ -334,23 +334,6 @@ export default function RoomList() {
                 disablePadding
                 secondaryAction={
                   <Box sx={{ display: "flex", alignItems: "center" }}>
-                    {room.unreadCount ? (
-                      <Box
-                        sx={{
-                          bgcolor: "#6366f1",
-                          color: "white",
-                          borderRadius: "12px",
-                          px: 1,
-                          py: 0.2,
-                          fontSize: "0.75rem",
-                          fontWeight: "bold",
-                          mr: 1,
-                          boxShadow: "0 2px 4px rgba(99, 102, 241, 0.3)",
-                        }}
-                      >
-                        {room.unreadCount}
-                      </Box>
-                    ) : null}
                     <IconButton
                       edge="end"
                       aria-label="more"
@@ -444,7 +427,7 @@ export default function RoomList() {
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: room.unreadCount ? 7 : 4 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <Typography
                           variant="subtitle1"
                           fontWeight={activeRoomId === room._id ? "700" : "600"}
@@ -454,52 +437,76 @@ export default function RoomList() {
                         >
                           {otherUser?.name || "Unknown"}
                         </Typography>
-                        {room.lastMessage?.createdAt && (
+                        {(room.lastMessage?.createdAt || (room.lastMessage as any)?.timestamp) && (
                           <Typography
                             variant="caption"
                             color="text.secondary"
                             sx={{
                               fontSize: "0.7rem",
-                              ml: 1,
                               flexShrink: 0,
-                              opacity: 0.7
+                              opacity: 0.7,
+                              whiteSpace: "nowrap"
                             }}
                           >
-                            {getRelativeTime(room.lastMessage.createdAt)}
+                            {getRelativeTime(room.lastMessage.createdAt || (room.lastMessage as any).timestamp)}
                           </Typography>
                         )}
                       </Box>
                     }
                     secondary={
-                      <Typography
-                        variant="body2"
-                        color={
-                          room.unreadCount ? "text.primary" : "text.secondary"
-                        }
-                        fontWeight={room.unreadCount ? "600" : "400"}
-                        noWrap
-                        sx={{ maxWidth: "85%", opacity: 0.8 }}
-                      >
-                        {typingUsers[room._id]?.length > 0 ? (
-                          <span
-                            style={{ color: "#22c55e", fontWeight: "bold" }}
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          color={
+                            room.unreadCount ? "text.primary" : "text.secondary"
+                          }
+                          fontWeight={room.unreadCount ? "600" : "400"}
+                          noWrap
+                          sx={{ flex: 1, mr: 1, opacity: 0.8 }}
+                        >
+                          {typingUsers[room._id]?.length > 0 ? (
+                            <span
+                              style={{ color: "#22c55e", fontWeight: "bold" }}
+                            >
+                              typing...
+                            </span>
+                          ) : room.lastMessage?.deleted ? (
+                            <span style={{ fontStyle: "italic", opacity: 0.7 }}>
+                              This message was deleted
+                            </span>
+                          ) : (room as any).lastMessagePreview ? (
+                            (room as any).lastMessagePreview
+                          ) : room.lastMessage?.type === "audio" ? (
+                            "🎤 Voice message"
+                          ) : (
+                            room.lastMessage?.message || "No messages yet"
+                          )}
+                        </Typography>
+                        {room.unreadCount > 0 && (
+                          <Box
+                            sx={{
+                              bgcolor: "#6366f1",
+                              color: "white",
+                              borderRadius: "12px",
+                              px: 0.8,
+                              py: 0.2,
+                              minWidth: "18px",
+                              height: "18px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.7rem",
+                              fontWeight: "bold",
+                              boxShadow: "0 2px 4px rgba(99, 102, 241, 0.3)",
+                              flexShrink: 0
+                            }}
                           >
-                            typing...
-                          </span>
-                        ) : room.lastMessage?.deleted ? (
-                          <span style={{ fontStyle: "italic", opacity: 0.7 }}>
-                            This message was deleted
-                          </span>
-                        ) : (room as any).lastMessagePreview ? (
-                          (room as any).lastMessagePreview
-                        ) : room.lastMessage?.type === "audio" ? (
-                          "🎤 Voice message"
-                        ) : (
-                          room.lastMessage?.message || "No messages yet"
+                            {room.unreadCount}
+                          </Box>
                         )}
-                      </Typography>
+                      </Box>
                     }
-                    sx={{ my: 0, ml: 1 }}
+                    sx={{ my: 0, ml: 1, pr: 1 }}
                   />
                 </ListItemButton>
               </ListItem>

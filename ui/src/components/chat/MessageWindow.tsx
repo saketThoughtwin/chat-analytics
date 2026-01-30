@@ -802,7 +802,7 @@ export default function MessageWindow() {
             const showDateSeparator =
               index === 0 ||
               getDateLabel(msg.createdAt) !==
-                getDateLabel(messages[index - 1].createdAt);
+              getDateLabel(messages[index - 1].createdAt);
 
             return (
               <React.Fragment key={msg._id}>
@@ -875,12 +875,12 @@ export default function MessageWindow() {
                       sx={{
                         p:
                           msg.type === "audio" ||
-                          msg.message?.startsWith("data:audio/")
+                            msg.message?.startsWith("data:audio/")
                             ? "6px 12px"
                             : "10px 16px",
                         minWidth:
                           msg.type === "audio" ||
-                          msg.message?.startsWith("data:audio/")
+                            msg.message?.startsWith("data:audio/")
                             ? { xs: "190px", sm: "220px" }
                             : "auto",
                         // Gradient for me, slightly dimmer white/gray for them
@@ -919,11 +919,11 @@ export default function MessageWindow() {
                         ) : (
                           <>
                             {msg.type === "image" ||
-                            (msg.mediaUrl &&
-                              (msg.mediaUrl.includes(".jpg") ||
-                                msg.mediaUrl.includes(".png") ||
-                                msg.mediaUrl.includes(".jpeg") ||
-                                msg.mediaUrl.includes(".webp"))) ? (
+                              (msg.mediaUrl &&
+                                (msg.mediaUrl.includes(".jpg") ||
+                                  msg.mediaUrl.includes(".png") ||
+                                  msg.mediaUrl.includes(".jpeg") ||
+                                  msg.mediaUrl.includes(".webp"))) ? (
                               <Box sx={{ position: "relative" }}>
                                 <Box
                                   component="img"
@@ -1402,14 +1402,18 @@ export default function MessageWindow() {
         <MenuItem onClick={handleStarClick}>
           <StarIcon fontSize="small" sx={{ mr: 1, color: "#fbbf24" }} />
           {selectedMessageId &&
-          messages.find((m) => m._id === selectedMessageId)?.starred
+            messages.find((m) => m._id === selectedMessageId)?.starred
             ? "Unstar"
             : "Star"}
         </MenuItem>
-        <MenuItem onClick={handleDeleteClick} sx={{ color: "#ef4444" }}>
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete
-        </MenuItem>
+        {selectedMessageId &&
+          messages.find((m) => m._id === selectedMessageId)?.sender ===
+          currentUser?.id && (
+            <MenuItem onClick={handleDeleteClick} sx={{ color: "#ef4444" }}>
+              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+              Delete
+            </MenuItem>
+          )}
       </Menu>
 
       {/* Delete Confirmation Dialog */}

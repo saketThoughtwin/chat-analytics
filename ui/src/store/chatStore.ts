@@ -515,19 +515,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         ? '🎤 Voice message'
                         : message.message;
 
-                // Check if this message already exists in the room's context to prevent double counting
-                // This happens when we send a message - it's added locally, then received via socket
+                // Check if this message already exists in the room's context or as the last message to prevent double counting
                 const messageAlreadyExistsInRoom = state.messages.some(
-                  (m) => m._id === message._id || (m.tempId && m.message === message.message && m.sender === message.sender)
+                  (m) =>
+                    m._id === message._id ||
+                    (m.tempId &&
+                      m.message === message.message &&
+                      m.sender === message.sender),
                 );
+                const isDuplicateLastMessage = r.lastMessage?._id === message._id;
 
                 return {
                   ...r,
                   lastMessage: message,
                   lastMessagePreview,
                   unreadCount:
-                    // Don't increment if it's my message, room is active, or message already existed
-                    isMe || isRoomActive || messageAlreadyExistsInRoom
+                    // Don't increment if it's my message, room is active, message already exists, or it's a duplicate of the current last message
+                    isMe ||
+                      isRoomActive ||
+                      messageAlreadyExistsInRoom ||
+                      isDuplicateLastMessage
                       ? r.unreadCount || 0
                       : (r.unreadCount || 0) + 1,
                 };
