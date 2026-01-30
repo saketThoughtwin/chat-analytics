@@ -38,6 +38,29 @@ import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import CreateChatDialog from "./CreateChatDialog";
 
+// Utility function to get relative time
+const getRelativeTime = (dateString: string) => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "just now";
+  if (diffInSeconds < 3600) {
+    const mins = Math.floor(diffInSeconds / 60);
+    return `${mins} min${mins > 1 ? 's' : ''} ago`;
+  }
+  if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  }
+  if (diffInSeconds < 604800) {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  }
+  // For older messages, show date
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export default function RoomList() {
   const {
     rooms,
@@ -66,9 +89,15 @@ export default function RoomList() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   // Header Menu State
-  const [headerMenuAnchor, setHeaderMenuAnchor] = useState<null | HTMLElement>(null);
-  const [starredMessagesDialogOpen, setStarredMessagesDialogOpen] = useState(false);
+  const [headerMenuAnchor, setHeaderMenuAnchor] = useState<null | HTMLElement>(
+    null,
+  );
+  const [starredMessagesDialogOpen, setStarredMessagesDialogOpen] =
+    useState(false);
   const [starredMessages, setStarredMessages] = useState<any[]>([]);
+
+  // State to force re-render for time updates
+  const [, setTimeUpdateTrigger] = useState(0);
 
   const handleHeaderMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setHeaderMenuAnchor(event.currentTarget);
@@ -88,6 +117,15 @@ export default function RoomList() {
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
+
+  // Update relative times every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeUpdateTrigger((prev) => prev + 1);
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     reset(); // Clear chat state (active room, messages, etc.)
@@ -229,17 +267,21 @@ export default function RoomList() {
             onClose={handleHeaderMenuClose}
             PaperProps={{
               elevation: 3,
-              sx: { borderRadius: 2, minWidth: 180, mt: 1 }
+              sx: { borderRadius: 2, minWidth: 130, mt: 1, },
             }}
           >
             <MenuItem onClick={handleStarredMessagesClick}>
-              <StarIcon fontSize="small" sx={{ mr: 1.5, color: '#fbbf24' }} />
-              Starred Messages
+              <StarIcon fontSize="small" sx={{ mr: 1.5, color: "#fbbf24" }} />
+              <Typography sx={{ fontSize: "1rem" }}>
+                Starred
+              </Typography>
             </MenuItem>
             <Divider sx={{ my: 0.5 }} />
-            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
               <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
-              Logout
+              <Typography sx={{ fontSize: "1rem" }}>
+                Logout
+              </Typography>
             </MenuItem>
           </Menu>
         </Box>
@@ -402,14 +444,31 @@ export default function RoomList() {
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={activeRoomId === room._id ? "700" : "600"}
-                        color="text.primary"
-                        noWrap
-                      >
-                        {otherUser?.name || "Unknown"}
-                      </Typography>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: room.unreadCount ? 7 : 4 }}>
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight={activeRoomId === room._id ? "700" : "600"}
+                          color="text.primary"
+                          noWrap
+                          sx={{ flex: 1, mr: 1 }}
+                        >
+                          {otherUser?.name || "Unknown"}
+                        </Typography>
+                        {room.lastMessage?.createdAt && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              fontSize: "0.7rem",
+                              ml: 1,
+                              flexShrink: 0,
+                              opacity: 0.7
+                            }}
+                          >
+                            {getRelativeTime(room.lastMessage.createdAt)}
+                          </Typography>
+                        )}
+                      </Box>
                     }
                     secondary={
                       <Typography
@@ -427,10 +486,14 @@ export default function RoomList() {
                           >
                             typing...
                           </span>
+                        ) : room.lastMessage?.deleted ? (
+                          <span style={{ fontStyle: "italic", opacity: 0.7 }}>
+                            This message was deleted
+                          </span>
                         ) : (room as any).lastMessagePreview ? (
                           (room as any).lastMessagePreview
-                        ) : room.lastMessage?.type === 'audio' ? (
-                          '🎤 Voice message'
+                        ) : room.lastMessage?.type === "audio" ? (
+                          "🎤 Voice message"
                         ) : (
                           room.lastMessage?.message || "No messages yet"
                         )}
@@ -482,17 +545,26 @@ export default function RoomList() {
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 3, height: '60vh' }
+          sx: { borderRadius: 3, height: "60vh" },
         }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <StarIcon sx={{ color: '#fbbf24' }} />
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <StarIcon sx={{ color: "#fbbf24" }} />
           Starred Messages
         </DialogTitle>
         <DialogContent dividers>
           {starredMessages.length === 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6 }}>
-              <StarIcon sx={{ fontSize: 48, mb: 2, color: '#e2e8f0' }} />
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                opacity: 0.6,
+              }}
+            >
+              <StarIcon sx={{ fontSize: 48, mb: 2, color: "#e2e8f0" }} />
               <Typography color="text.secondary">
                 No starred messages found.
               </Typography>
@@ -500,26 +572,47 @@ export default function RoomList() {
           ) : (
             <List>
               {starredMessages.map((msg) => (
-                <ListItem key={msg._id} alignItems="flex-start" sx={{ bgcolor: 'rgba(0,0,0,0.02)', mb: 1, borderRadius: 2 }}>
+                <ListItem
+                  key={msg._id}
+                  alignItems="flex-start"
+                  sx={{ bgcolor: "rgba(0,0,0,0.02)", mb: 1, borderRadius: 2 }}
+                >
                   <ListItemText
                     primary={
-                      <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
-                        {msg.message || (msg.type === 'image' ? '📷 Photo' : msg.type === 'video' ? '🎥 Video' : msg.type === 'audio' ? '🎤 Voice message' : 'Media')}
+                      <Typography
+                        variant="body1"
+                        sx={{ wordBreak: "break-word" }}
+                      >
+                        {msg.message ||
+                          (msg.type === "image"
+                            ? "📷 Photo"
+                            : msg.type === "video"
+                              ? "🎥 Video"
+                              : msg.type === "audio"
+                                ? "🎤 Voice message"
+                                : "Media")}
                       </Typography>
                     }
                     secondary={
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, display: "block" }}
+                      >
                         {new Date(msg.createdAt).toLocaleString()}
                       </Typography>
                     }
                   />
-                  <IconButton size="small" onClick={() => {
-                    // Optional: Navigate to chat or unstar
-                    // For now just unstar
-                    // But we need toggleStarMessage here which is not imported
-                    // Let's just show them for now.
-                  }}>
-                    <StarIcon fontSize="small" sx={{ color: '#fbbf24' }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      // Optional: Navigate to chat or unstar
+                      // For now just unstar
+                      // But we need toggleStarMessage here which is not imported
+                      // Let's just show them for now.
+                    }}
+                  >
+                    <StarIcon fontSize="small" sx={{ color: "#fbbf24" }} />
                   </IconButton>
                 </ListItem>
               ))}
@@ -527,7 +620,9 @@ export default function RoomList() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setStarredMessagesDialogOpen(false)}>Close</Button>
+          <Button onClick={() => setStarredMessagesDialogOpen(false)}>
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -592,6 +687,6 @@ export default function RoomList() {
           />
         </Box>
       </Fab>
-    </Box >
+    </Box>
   );
 }

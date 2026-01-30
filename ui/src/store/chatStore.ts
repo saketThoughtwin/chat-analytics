@@ -405,6 +405,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 : m
             )
           ])
+        ),
+        // Update room's lastMessagePreview if the deleted message is the last message
+        rooms: state.rooms.map((r) =>
+          r.lastMessage?._id === messageId
+            ? {
+              ...r,
+              lastMessage: {
+                ...r.lastMessage,
+                deleted: true,
+                message: "This message was deleted",
+                type: 'text' as const,
+                mediaUrl: undefined
+              },
+              lastMessagePreview: "Message was deleted" as any
+            }
+            : r
         )
       }));
     } catch (error) {
@@ -487,14 +503,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
               if (r._id === message.roomId) {
                 const isMe = message.sender === currentUserId;
                 const isRoomActive = message.roomId === activeRoomId;
-                const lastMessagePreview = message.type === 'image' ? '📷 Photo' : message.type === 'video' ? '🎥 Video' : message.type === 'audio' ? '🎤 Voice message' : message.message;
+
+                // Handle deleted messages in preview
+                const lastMessagePreview = message.deleted
+                  ? 'Message was deleted'
+                  : message.type === 'image'
+                    ? '📷 Photo'
+                    : message.type === 'video'
+                      ? '🎥 Video'
+                      : message.type === 'audio'
+                        ? '🎤 Voice message'
+                        : message.message;
+
+                // Check if this message already exists in the room's context to prevent double counting
+                // This happens when we send a message - it's added locally, then received via socket
+                const messageAlreadyExistsInRoom = state.messages.some(
+                  (m) => m._id === message._id || (m.tempId && m.message === message.message && m.sender === message.sender)
+                );
 
                 return {
                   ...r,
                   lastMessage: message,
                   lastMessagePreview,
                   unreadCount:
-                    isMe || isRoomActive
+                    // Don't increment if it's my message, room is active, or message already existed
+                    isMe || isRoomActive || messageAlreadyExistsInRoom
                       ? r.unreadCount || 0
                       : (r.unreadCount || 0) + 1,
                 };
