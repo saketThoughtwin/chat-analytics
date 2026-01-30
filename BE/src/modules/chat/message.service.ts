@@ -35,7 +35,7 @@ class MessageService {
 
         // Update room's last message
         const lastMsgText = data.type === 'image' ? '📷 Photo' : data.type === 'video' ? '🎥 Video' : data.type === 'audio' ? '🎤 Voice message' : data.message || '';
-        await roomService.updateRoomLastMessage(data.roomId, lastMsgText, data.sender);
+        await roomService.updateRoomLastMessage(data.roomId, newMessage._id.toString(), lastMsgText, data.sender);
 
         // Increment unread count for other participants
         const room = await roomService.getRoomById(data.roomId);
@@ -117,9 +117,8 @@ class MessageService {
     /**
      * Soft delete a message
      */
-    async deleteMessage(messageId: string, userId: string): Promise<boolean> {
-        const result = await messageRepository.softDelete(messageId, userId);
-        return result.modifiedCount > 0;
+    async deleteMessage(messageId: string, userId: string): Promise<IChatMessage | null> {
+        return messageRepository.softDelete(messageId, userId);
     }
 
     /**
@@ -166,15 +165,15 @@ class MessageService {
     /**
      * Toggle star status of a message
      */
-    async toggleStarMessage(messageId: string, starred: boolean): Promise<IChatMessage | null> {
-        return messageRepository.toggleStar(messageId, starred);
+    async toggleStarMessage(messageId: string, userId: string, starred: boolean): Promise<IChatMessage | null> {
+        return messageRepository.toggleStar(messageId, userId, starred);
     }
 
     /**
      * Get starred messages for a room
      */
-    async getStarredMessages(roomId: string): Promise<IChatMessage[]> {
-        return messageRepository.findStarredByRoomId(roomId);
+    async getStarredMessages(roomId: string, userId: string): Promise<IChatMessage[]> {
+        return messageRepository.findStarredByRoomId(roomId, userId);
     }
 
     /**

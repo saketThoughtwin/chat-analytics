@@ -35,11 +35,12 @@ class RoomRepository {
         return Room.findByIdAndUpdate(id, update, { new: true });
     }
 
-    async updateLastMessage(roomId: string, message: string, senderId: string) {
+    async updateLastMessage(roomId: string, messageId: string, message: string, senderId: string) {
         return Room.findByIdAndUpdate(
             roomId,
             {
                 lastMessage: {
+                    messageId,
                     message,
                     senderId,
                     timestamp: new Date()
@@ -80,6 +81,18 @@ class RoomRepository {
 
     async countByParticipant(userId: string) {
         return Room.countDocuments({ participants: userId });
+    }
+
+    async findLastMessage(roomId: string) {
+        // Import ChatMessage here to avoid circular dependency if any, 
+        // but it's better to use ChatMessage model directly here or move it to a shared place.
+        // Actually, Room model doesn't import ChatMessage.
+        // Let's use the ChatMessage model from outside.
+        const ChatMessage = (await import("./chat.model")).default;
+        return ChatMessage.findOne({ roomId, deleted: false })
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
     }
 
     async deleteById(id: string) {

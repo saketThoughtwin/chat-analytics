@@ -12,7 +12,7 @@ export interface IChatMessage extends Document {
   readAt?: Date;
   read: boolean;
   deleted: boolean;
-  starred: boolean;
+  starredBy: string[];
 }
 
 const ChatSchema = new Schema<IChatMessage>(
@@ -27,7 +27,7 @@ const ChatSchema = new Schema<IChatMessage>(
     deliveredAt: { type: Date },
     readAt: { type: Date },
     deleted: { type: Boolean, default: false },
-    starred: { type: Boolean, default: false }
+    starredBy: { type: [String], default: [] }
   },
   { timestamps: true }
 );

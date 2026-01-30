@@ -43,13 +43,13 @@ class RoomService {
     /**
      * Update room's last message metadata
      */
-    async updateRoomLastMessage(roomId: string, message: string, senderId: string): Promise<void> {
+    async updateRoomLastMessage(roomId: string, messageId: string, message: string, senderId: string): Promise<void> {
         // Use a placeholder for voice messages in the room list to keep it lightweight
         const displayMessage = message.startsWith('data:audio/')
             ? '🎤 Voice message'
             : message;
 
-        await roomRepository.updateLastMessage(roomId, displayMessage, senderId);
+        await roomRepository.updateLastMessage(roomId, messageId, displayMessage, senderId);
     }
 
     /**
@@ -119,6 +119,20 @@ class RoomService {
      */
     async deleteRoom(roomId: string): Promise<void> {
         await roomRepository.deleteById(roomId);
+    }
+
+    /**
+     * Refresh room's last message from database
+     */
+    async refreshRoomLastMessage(roomId: string): Promise<void> {
+        const lastMsg = await roomRepository.findLastMessage(roomId);
+        if (lastMsg) {
+            const displayMessage = (lastMsg as any).type === 'image' ? '📷 Photo' : (lastMsg as any).type === 'video' ? '🎥 Video' : (lastMsg as any).type === 'audio' ? '🎤 Voice message' : (lastMsg as any).message || '';
+            await roomRepository.updateLastMessage(roomId, (lastMsg as any)._id.toString(), displayMessage, (lastMsg as any).sender);
+        } else {
+            // No messages left in room
+            await roomRepository.updateById(roomId, { lastMessage: undefined });
+        }
     }
 }
 

@@ -685,6 +685,59 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     });
 
+    socket.on("message_deleted", ({ messageId, roomId }) => {
+      set((state) => {
+        // Update messages in current room
+        const newMessages = state.messages.map((m) =>
+          m._id === messageId
+            ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+            : m
+        );
+
+        // Update cache
+        const newCache = { ...state.messagesCache };
+        if (newCache[roomId]) {
+          newCache[roomId] = newCache[roomId].map((m) =>
+            m._id === messageId
+              ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+              : m
+          );
+        }
+
+        // Update room list preview
+        const newRooms = state.rooms.map((r) => {
+          if (r._id === roomId && r.lastMessage?._id === messageId) {
+            return {
+              ...r,
+              lastMessagePreview: "Message was deleted" as any,
+              lastMessage: {
+                ...r.lastMessage!,
+                deleted: true,
+                message: "This message was deleted",
+                type: 'text' as const,
+                mediaUrl: undefined
+              }
+            };
+          }
+          return r;
+        });
+
+        return {
+          messages: newMessages,
+          messagesCache: newCache,
+          rooms: newRooms
+        };
+      });
+    });
+
+    socket.on("room_update", (updatedRoom: Room) => {
+      set((state) => ({
+        rooms: state.rooms.map((r) =>
+          r._id === updatedRoom._id ? { ...r, ...updatedRoom } : r
+        )
+      }));
+    });
+
   },
   reset: () => {
     set({

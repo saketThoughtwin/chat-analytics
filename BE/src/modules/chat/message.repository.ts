@@ -83,34 +83,27 @@ class MessageRepository {
     }
 
     async softDelete(id: string, senderId: string) {
-        return ChatMessage.updateOne(
+        return ChatMessage.findOneAndUpdate(
             { _id: id, sender: senderId },
-            { deleted: true, message: "This message was deleted", type: 'text', mediaUrl: null }
+            { deleted: true, message: "This message was deleted", type: 'text', mediaUrl: null },
+            { new: true }
         );
     }
 
-    async toggleStar(id: string, starred: boolean) {
-        return ChatMessage.findByIdAndUpdate(id, { starred }, { new: true });
+    async toggleStar(id: string, userId: string, starred: boolean) {
+        const update = starred
+            ? { $addToSet: { starredBy: userId } }
+            : { $pull: { starredBy: userId } };
+        return ChatMessage.findByIdAndUpdate(id, update, { new: true });
     }
 
-    async findStarredByRoomId(roomId: string) {
-        return ChatMessage.find({ roomId, starred: true, deleted: false }).lean();
+    async findStarredByRoomId(roomId: string, userId: string) {
+        return ChatMessage.find({ roomId, starredBy: userId, deleted: false }).lean();
     }
 
     async findStarredByUser(userId: string) {
-        // Find messages where user is sender OR receiver (or just part of the room?)
-        // Actually, if starred is global, we just find all starred messages in rooms the user is part of.
-        // But for simplicity, let's just find all starred messages where the user is sender or receiver.
-        // Or better, find all messages that are starred.
-        // Wait, if I star a message in a group, everyone sees it.
-        // So I should find all starred messages in rooms the user belongs to.
-        // This is complex.
-        // Let's just stick to "findStarredByRoomId" and maybe the UI only enables it when a room is active?
-        // But the user put the button in the global sidebar.
-        // Let's try to implement `findStarredByUser` which finds messages sent by or received by user that are starred.
         return ChatMessage.find({
-            $or: [{ sender: userId }, { receiver: userId }],
-            starred: true,
+            starredBy: userId,
             deleted: false
         }).lean();
     }

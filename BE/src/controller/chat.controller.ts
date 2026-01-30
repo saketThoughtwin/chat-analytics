@@ -48,8 +48,9 @@ export default class ChatController {
         // Ensure lastMessage has createdAt for frontend consistency
         lastMessage = {
           ...room.lastMessage,
+          _id: (room.lastMessage as any).messageId,
           createdAt: (room.lastMessage as any).timestamp || (room.lastMessage as any).createdAt
-        };
+        } as any;
 
         if ((room.lastMessage as any).type === 'image') {
           lastMessagePreview = '📷 Photo';
@@ -86,11 +87,12 @@ export default class ChatController {
       ? room.unreadCounts.get(userId!) || 0
       : (room.unreadCounts as any)?.[userId!] || 0;
 
-    // Ensure lastMessage has createdAt for consistency
+    // Ensure lastMessage has _id and createdAt for consistency
     const lastMessage = room.lastMessage ? {
       ...room.lastMessage,
+      _id: (room.lastMessage as any).messageId,
       createdAt: (room.lastMessage as any).timestamp || (room.lastMessage as any).createdAt
-    } : undefined;
+    } as any : undefined;
 
     res.json({ ...room, lastMessage, unreadCount });
   }
@@ -218,7 +220,18 @@ export default class ChatController {
     }
 
     const result = await messageService.getMessages(roomId, { page, limit });
-    res.json(result);
+
+    // Transform messages to include 'starred' boolean for current user
+    const transformedMessages = result.messages.map(m => ({
+      ...m,
+      starred: m.starredBy?.includes(userId!) || false,
+      starredBy: undefined
+    }));
+
+    res.json({
+      ...result,
+      messages: transformedMessages
+    });
   }
 
   /**
@@ -337,21 +350,26 @@ export default class ChatController {
     const { userId } = req;
     const { messageId } = req.params;
 
-    const success = await messageService.deleteMessage(messageId, userId!);
-    if (!success) throw new ApiError(404, "Message not found or you are not the sender");
+    const deletedMsg = await messageService.deleteMessage(messageId, userId!);
+    if (!deletedMsg) throw new ApiError(404, "Message not found or you are not the sender");
 
-    // Emit to room (we need to find the room first, but deleteMessage doesn't return it)
-    // For now, we can rely on the client to update or we can fetch the message before deleting.
-    // Ideally, we should emit 'message_deleted' event.
-    // Let's fetch the message first to get the roomId.
-    const message = await messageService.deleteMessage(messageId, userId!); // Wait, deleteMessage returns boolean.
-    // I should have fetched it first. But let's just return success for now.
-    // The user requirement says "call that delete message api their and after the confirm box it will be deleted".
-    // It doesn't explicitly ask for socket event, but it's good practice.
-    // However, since I already modified softDelete to return update result, I can't easily get the room ID unless I fetch it first.
-    // Let's just return success.
+    const roomId = deletedMsg.roomId;
 
-    res.json({ message: "Message deleted successfully" });
+    // Refresh room's last message if needed
+    const room = await roomService.getRoomById(roomId);
+    if (room && room.lastMessage?.messageId.toString() === messageId) {
+      await roomService.refreshRoomLastMessage(roomId);
+      // Fetch updated room to get new preview
+      const updatedRoom = await roomService.getRoomById(roomId);
+      if (updatedRoom) {
+        io.to(roomId).emit("room_update", updatedRoom);
+      }
+    }
+
+    // Emit 'message_deleted' to room
+    io.to(roomId).emit("message_deleted", { messageId, roomId });
+
+    res.json({ message: "Message deleted successfully", messageId, roomId });
   }
 
   /**
@@ -359,15 +377,23 @@ export default class ChatController {
    * PUT /api/chat/messages/:messageId/star
    */
   static async toggleStarMessage(req: AuthRequest, res: Response) {
+    const { userId } = req;
     const { messageId } = req.params;
     const { starred } = req.body;
 
     if (typeof starred !== 'boolean') throw new ApiError(400, "starred boolean is required");
 
-    const message = await messageService.toggleStarMessage(messageId, starred);
+    const message = await messageService.toggleStarMessage(messageId, userId!, starred);
     if (!message) throw new ApiError(404, "Message not found");
 
-    res.json(message);
+    // Transform for response
+    const transformed = {
+      ...message.toObject(),
+      starredBy: undefined,
+      starred: message.starredBy.includes(userId!)
+    };
+
+    res.json(transformed);
   }
 
   /**
@@ -375,9 +401,16 @@ export default class ChatController {
    * GET /api/chat/rooms/:roomId/starred
    */
   static async getStarredMessages(req: AuthRequest, res: Response) {
+    const { userId } = req;
     const { roomId } = req.params;
-    const messages = await messageService.getStarredMessages(roomId);
-    res.json(messages);
+    const messages = await messageService.getStarredMessages(roomId, userId!);
+
+    const transformed = messages.map(m => ({
+      ...m,
+      starred: true // Since we filtered by this user's starring
+    }));
+
+    res.json(transformed);
   }
 
   /**
@@ -387,6 +420,12 @@ export default class ChatController {
   static async getAllStarredMessages(req: AuthRequest, res: Response) {
     const { userId } = req;
     const messages = await messageService.getAllStarredMessages(userId!);
-    res.json(messages);
+
+    const transformed = messages.map(m => ({
+      ...m,
+      starred: true
+    }));
+
+    res.json(transformed);
   }
 }
