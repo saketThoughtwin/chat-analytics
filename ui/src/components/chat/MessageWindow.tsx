@@ -797,308 +797,319 @@ export default function MessageWindow() {
           </Box>
         )}
         <List sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {messages?.map((msg, index) => {
-            const isMe = msg.sender === currentUser?.id;
-            const showDateSeparator =
-              index === 0 ||
-              getDateLabel(msg.createdAt) !==
-              getDateLabel(messages[index - 1].createdAt);
+          {(() => {
+            let lastShownDate = "";
+            return messages?.map((msg, index) => {
+              const isMe = msg.sender === currentUser?.id;
 
-            return (
-              <React.Fragment key={msg._id}>
-                {showDateSeparator && (
-                  <Box
-                    sx={{ display: "flex", justifyContent: "center", my: 2 }}
-                  >
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        bgcolor: "rgba(0,0,0,0.05)",
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: 2,
-                      }}
+              // Visibility Logic for deleted messages:
+              // - Hide for sender always (user wants "blank screen")
+              // - Hide for receiver if already read (user wants to show only if "not read")
+              const shouldHideDeleted = msg.deleted && (isMe || msg.read);
+              if (shouldHideDeleted) return null;
+
+              const dateLabel = getDateLabel(msg.createdAt);
+              const showDateSeparator = dateLabel !== lastShownDate;
+              lastShownDate = dateLabel;
+
+              return (
+                <React.Fragment key={msg._id}>
+                  {showDateSeparator && (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", my: 2 }}
                     >
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        fontWeight="500"
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          bgcolor: "rgba(0,0,0,0.05)",
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: 2,
+                        }}
                       >
-                        {getDateLabel(msg.createdAt)}
-                      </Typography>
-                    </Paper>
-                  </Box>
-                )}
-                <ListItem
-                  sx={{
-                    flexDirection: "column",
-                    alignItems: isMe ? "flex-end" : "flex-start",
-                    p: 0,
-                    width: "100%",
-                    position: "relative",
-                    "&:hover .message-actions": { opacity: 1 },
-                  }}
-                >
-                  <Box
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight="500"
+                        >
+                          {getDateLabel(msg.createdAt)}
+                        </Typography>
+                      </Paper>
+                    </Box>
+                  )}
+                  <ListItem
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      maxWidth: "80%",
-                      flexDirection: isMe ? "row-reverse" : "row",
+                      flexDirection: "column",
+                      alignItems: isMe ? "flex-end" : "flex-start",
+                      p: 0,
+                      width: "100%",
+                      position: "relative",
+                      "&:hover .message-actions": { opacity: 1 },
                     }}
                   >
-                    {/* Message Actions (3 dots) */}
                     <Box
-                      className="message-actions"
                       sx={{
-                        width: 32, // fixed width
                         display: "flex",
-                        justifyContent: "center",
                         alignItems: "center",
-                        opacity: msg.deleted ? 0 : 1,
-                        pointerEvents: msg.deleted ? "none" : "auto",
-                        transition: "opacity 0.2s",
+                        maxWidth: "80%",
+                        flexDirection: isMe ? "row-reverse" : "row",
                       }}
                     >
-                      {!msg.deleted && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMessageMenuOpen(e, msg._id)}
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                    </Box>
-
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p:
-                          msg.type === "audio" ||
-                            msg.message?.startsWith("data:audio/")
-                            ? "6px 12px"
-                            : "10px 16px",
-                        minWidth:
-                          msg.type === "audio" ||
-                            msg.message?.startsWith("data:audio/")
-                            ? { xs: "190px", sm: "220px" }
-                            : "auto",
-                        // Gradient for me, slightly dimmer white/gray for them
-                        background: isMe
-                          ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
-                          : "#fff9f0",
-                        color: isMe ? "white" : "#1e293b",
-                        borderRadius: "20px", // Pill shape
-                        borderBottomRightRadius: isMe ? "4px" : "20px",
-                        borderBottomLeftRadius: isMe ? "20px" : "4px",
-                        boxShadow: isMe
-                          ? "0 4px 15px rgba(99, 102, 241, 0.3)"
-                          : "0 1px 3px rgba(0,0,0,0.05)", // Softer shadow
-                        border: isMe
-                          ? "none"
-                          : "1px solid rgba(255, 243, 224, 0.5)", // Subtle border for received
-                        overflow: "hidden",
-                        position: "relative",
-                      }}
-                    >
-                      <Box sx={{ fontSize: "0.95rem", lineHeight: 1.5 }}>
-                        {msg.deleted ? (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              fontStyle: "italic",
-                              opacity: 0.7,
-                            }}
+                      {/* Message Actions (3 dots) */}
+                      <Box
+                        className="message-actions"
+                        sx={{
+                          width: 32, // fixed width
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          opacity: msg.deleted ? 0 : 1,
+                          pointerEvents: msg.deleted ? "none" : "auto",
+                          transition: "opacity 0.2s",
+                        }}
+                      >
+                        {!msg.deleted && (
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMessageMenuOpen(e, msg._id)}
                           >
-                            <Typography variant="body2">
-                              This message was deleted
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <>
-                            {msg.type === "image" ||
-                              (msg.mediaUrl &&
-                                (msg.mediaUrl.includes(".jpg") ||
-                                  msg.mediaUrl.includes(".png") ||
-                                  msg.mediaUrl.includes(".jpeg") ||
-                                  msg.mediaUrl.includes(".webp"))) ? (
-                              <Box sx={{ position: "relative" }}>
-                                <Box
-                                  component="img"
-                                  src={msg.mediaUrl}
-                                  alt="Shared image"
-                                  sx={{
-                                    width: "100%",
-                                    maxWidth: "300px",
-                                    borderRadius: "12px",
-                                    display: "block",
-                                    cursor: "pointer",
-                                  }}
-                                  onClick={() =>
-                                    window.open(msg.mediaUrl, "_blank")
-                                  }
-                                />
-                                {!isMe && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDownload(
-                                        msg.mediaUrl!,
-                                        `image-${msg._id}.jpg`,
-                                      )
-                                    }
-                                    sx={{
-                                      position: "absolute",
-                                      bottom: 8,
-                                      right: 8,
-                                      bgcolor: "rgba(0,0,0,0.5)",
-                                      color: "white",
-                                      "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
-                                    }}
-                                  >
-                                    <DownloadIcon fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </Box>
-                            ) : msg.type === "audio" ||
-                              msg.message?.startsWith("data:audio/") ||
-                              (msg.mediaUrl &&
-                                msg.mediaUrl.includes("voice-note")) ? (
-                              <CustomAudioPlayer
-                                src={msg.mediaUrl || msg.message}
-                                isMe={isMe}
-                              />
-                            ) : msg.type === "video" ||
-                              (msg.mediaUrl &&
-                                (msg.mediaUrl.includes(".mp4") ||
-                                  msg.mediaUrl.includes(".mov") ||
-                                  msg.mediaUrl.includes(".avi") ||
-                                  (msg.mediaUrl.includes(".webm") &&
-                                    !msg.mediaUrl.includes("voice-note")))) ? (
-                              <Box sx={{ position: "relative" }}>
-                                <Box
-                                  component="video"
-                                  src={msg.mediaUrl}
-                                  controls
-                                  sx={{
-                                    width: "100%",
-                                    maxWidth: "300px",
-                                    borderRadius: "12px",
-                                    display: "block",
-                                  }}
-                                />
-                                {!isMe && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDownload(
-                                        msg.mediaUrl!,
-                                        `video-${msg._id}.mp4`,
-                                      )
-                                    }
-                                    sx={{
-                                      position: "absolute",
-                                      top: 8,
-                                      right: 8,
-                                      bgcolor: "rgba(0,0,0,0.5)",
-                                      color: "white",
-                                      "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
-                                      zIndex: 1,
-                                    }}
-                                  >
-                                    <DownloadIcon fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </Box>
-                            ) : msg.mediaUrl ? (
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p:
+                            msg.type === "audio" ||
+                              msg.message?.startsWith("data:audio/")
+                              ? "6px 12px"
+                              : "10px 16px",
+                          minWidth:
+                            msg.type === "audio" ||
+                              msg.message?.startsWith("data:audio/")
+                              ? { xs: "190px", sm: "220px" }
+                              : "auto",
+                          // Gradient for me, slightly dimmer white/gray for them
+                          background: isMe
+                            ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
+                            : "#fff9f0",
+                          color: isMe ? "white" : "#1e293b",
+                          borderRadius: "20px", // Pill shape
+                          borderBottomRightRadius: isMe ? "4px" : "20px",
+                          borderBottomLeftRadius: isMe ? "20px" : "4px",
+                          boxShadow: isMe
+                            ? "0 4px 15px rgba(99, 102, 241, 0.3)"
+                            : "0 1px 3px rgba(0,0,0,0.05)", // Softer shadow
+                          border: isMe
+                            ? "none"
+                            : "1px solid rgba(255, 243, 224, 0.5)", // Subtle border for received
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                      >
+                        <Box sx={{ fontSize: "0.95rem", lineHeight: 1.5 }}>
+                          {msg.deleted ? (
+                            !isMe && !msg.read ? (
                               <Box
                                 sx={{
                                   display: "flex",
                                   alignItems: "center",
                                   gap: 1,
+                                  fontStyle: "italic",
+                                  opacity: 0.7,
                                 }}
                               >
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  Media file: {msg.mediaUrl.split("/").pop()}
+                                <Typography variant="body2">
+                                  This message was deleted
                                 </Typography>
-                                {!isMe && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleDownload(msg.mediaUrl!, "file")
-                                    }
-                                  >
-                                    <DownloadIcon fontSize="small" />
-                                  </IconButton>
-                                )}
                               </Box>
-                            ) : (
-                              msg.message
-                            )}
-                          </>
-                        )}
-                      </Box>
-                      {!msg.deleted && (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-end",
-                            mt: 0.5,
-                            gap: 0.5,
-                            minWidth: 60,
-                            opacity: 0.8,
-                          }}
-                        >
-                          {msg.starred && (
-                            <StarIcon
-                              sx={{
-                                fontSize: 14,
-                                color: isMe
-                                  ? "rgba(255,255,255,0.9)"
-                                  : "#fbbf24",
-                                mr: 0.2,
-                              }}
-                            />
+                            ) : null
+                          ) : (
+                            <>
+                              {msg.type === "image" ||
+                                (msg.mediaUrl &&
+                                  (msg.mediaUrl.includes(".jpg") ||
+                                    msg.mediaUrl.includes(".png") ||
+                                    msg.mediaUrl.includes(".jpeg") ||
+                                    msg.mediaUrl.includes(".webp"))) ? (
+                                <Box sx={{ position: "relative" }}>
+                                  <Box
+                                    component="img"
+                                    src={msg.mediaUrl}
+                                    alt="Shared image"
+                                    sx={{
+                                      width: "100%",
+                                      maxWidth: "300px",
+                                      borderRadius: "12px",
+                                      display: "block",
+                                      cursor: "pointer",
+                                    }}
+                                    onClick={() =>
+                                      window.open(msg.mediaUrl, "_blank")
+                                    }
+                                  />
+                                  {!isMe && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleDownload(
+                                          msg.mediaUrl!,
+                                          `image-${msg._id}.jpg`,
+                                        )
+                                      }
+                                      sx={{
+                                        position: "absolute",
+                                        bottom: 8,
+                                        right: 8,
+                                        bgcolor: "rgba(0,0,0,0.5)",
+                                        color: "white",
+                                        "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+                                      }}
+                                    >
+                                      <DownloadIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </Box>
+                              ) : msg.type === "audio" ||
+                                msg.message?.startsWith("data:audio/") ||
+                                (msg.mediaUrl &&
+                                  msg.mediaUrl.includes("voice-note")) ? (
+                                <CustomAudioPlayer
+                                  src={msg.mediaUrl || msg.message}
+                                  isMe={isMe}
+                                />
+                              ) : msg.type === "video" ||
+                                (msg.mediaUrl &&
+                                  (msg.mediaUrl.includes(".mp4") ||
+                                    msg.mediaUrl.includes(".mov") ||
+                                    msg.mediaUrl.includes(".avi") ||
+                                    (msg.mediaUrl.includes(".webm") &&
+                                      !msg.mediaUrl.includes("voice-note")))) ? (
+                                <Box sx={{ position: "relative" }}>
+                                  <Box
+                                    component="video"
+                                    src={msg.mediaUrl}
+                                    controls
+                                    sx={{
+                                      width: "100%",
+                                      maxWidth: "300px",
+                                      borderRadius: "12px",
+                                      display: "block",
+                                    }}
+                                  />
+                                  {!isMe && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleDownload(
+                                          msg.mediaUrl!,
+                                          `video-${msg._id}.mp4`,
+                                        )
+                                      }
+                                      sx={{
+                                        position: "absolute",
+                                        top: 8,
+                                        right: 8,
+                                        bgcolor: "rgba(0,0,0,0.5)",
+                                        color: "white",
+                                        "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+                                        zIndex: 1,
+                                      }}
+                                    >
+                                      <DownloadIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </Box>
+                              ) : msg.mediaUrl ? (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    Media file: {msg.mediaUrl.split("/").pop()}
+                                  </Typography>
+                                  {!isMe && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleDownload(msg.mediaUrl!, "file")
+                                      }
+                                    >
+                                      <DownloadIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </Box>
+                              ) : (
+                                msg.message
+                              )}
+                            </>
                           )}
-                          <Typography
-                            variant="caption"
-                            color="inherit"
-                            sx={{ fontSize: "0.7rem" }}
+                        </Box>
+                        {!msg.deleted && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              mt: 0.5,
+                              gap: 0.5,
+                              minWidth: 60,
+                              opacity: 0.8,
+                            }}
                           >
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </Typography>
-                          {isMe &&
-                            (msg.read ? (
-                              <DoneAllIcon
-                                sx={{ fontSize: 14, color: "#4ade80" }}
-                              />
-                            ) : msg.delivered ? (
-                              <DoneAllIcon
+                            {msg.starred && (
+                              <StarIcon
                                 sx={{
                                   fontSize: 14,
-                                  color: "rgba(255,255,255,0.7)",
+                                  color: isMe
+                                    ? "rgba(255,255,255,0.9)"
+                                    : "#fbbf24",
+                                  mr: 0.2,
                                 }}
                               />
-                            ) : (
-                              <DoneIcon sx={{ fontSize: 14 }} />
-                            ))}
-                        </Box>
-                      )}
-                    </Paper>
-                  </Box>
-                </ListItem>
-              </React.Fragment>
-            );
-          })}
+                            )}
+                            <Typography
+                              variant="caption"
+                              color="inherit"
+                              sx={{ fontSize: "0.7rem" }}
+                            >
+                              {new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </Typography>
+                            {isMe &&
+                              (msg.read ? (
+                                <DoneAllIcon
+                                  sx={{ fontSize: 14, color: "#4ade80" }}
+                                />
+                              ) : msg.delivered ? (
+                                <DoneAllIcon
+                                  sx={{
+                                    fontSize: 14,
+                                    color: "rgba(255,255,255,0.7)",
+                                  }}
+                                />
+                              ) : (
+                                <DoneIcon sx={{ fontSize: 14 }} />
+                              ))}
+                          </Box>
+                        )}
+                      </Paper>
+                    </Box>
+                  </ListItem>
+                </React.Fragment>
+              );
+            });
+          })()}
           <div ref={messagesEndRef} />
         </List>
       </Box>

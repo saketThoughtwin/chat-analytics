@@ -690,7 +690,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Update messages in current room
         const newMessages = state.messages.map((m) =>
           m._id === messageId
-            ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+            ? { ...m, deleted: true, message: "This message was deleted", type: 'text' as const, mediaUrl: undefined }
             : m
         );
 
@@ -699,7 +699,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (newCache[roomId]) {
           newCache[roomId] = newCache[roomId].map((m) =>
             m._id === messageId
-              ? { ...m, deleted: true, message: "This message was deleted", type: 'text', mediaUrl: undefined }
+              ? { ...m, deleted: true, message: "This message was deleted", type: 'text' as const, mediaUrl: undefined }
               : m
           );
         }

@@ -448,7 +448,7 @@ export default function RoomList() {
                               whiteSpace: "nowrap"
                             }}
                           >
-                            {getRelativeTime(room.lastMessage.createdAt || (room.lastMessage as any).timestamp)}
+                            {getRelativeTime(room.lastMessage!.createdAt || (room.lastMessage as any).timestamp)}
                           </Typography>
                         )}
                       </Box>
@@ -471,9 +471,13 @@ export default function RoomList() {
                               typing...
                             </span>
                           ) : room.lastMessage?.deleted ? (
-                            <span style={{ fontStyle: "italic", opacity: 0.7 }}>
-                              This message was deleted
-                            </span>
+                            room.lastMessage.sender === currentUser?.id || room.lastMessage.read ? (
+                              ""
+                            ) : (
+                              <span style={{ fontStyle: "italic", opacity: 0.7 }}>
+                                This message was deleted
+                              </span>
+                            )
                           ) : (room as any).lastMessagePreview ? (
                             (room as any).lastMessagePreview
                           ) : room.lastMessage?.type === "audio" ? (
@@ -482,7 +486,7 @@ export default function RoomList() {
                             room.lastMessage?.message || "No messages yet"
                           )}
                         </Typography>
-                        {room.unreadCount > 0 && (
+                        {(room.unreadCount ?? 0) > 0 && (
                           <Box
                             sx={{
                               bgcolor: "#6366f1",
