@@ -9,7 +9,7 @@ const router = Router();
 
 // Create story
 router.post(
-    RoutesConstants.STORY.ALL,
+    `${RoutesConstants.STORY.DEFAULT}${RoutesConstants.STORY.ALL}`,
     authMiddleware,
     upload.single('file'),
     asyncHandler(StoryController.createStory)
@@ -17,21 +17,21 @@ router.post(
 
 // Get active stories
 router.get(
-    RoutesConstants.STORY.ALL,
+    `${RoutesConstants.STORY.DEFAULT}${RoutesConstants.STORY.ALL}`,
     authMiddleware,
     asyncHandler(StoryController.getActiveStories)
 );
 
 // View story
 router.post(
-    RoutesConstants.STORY.VIEW,
+    `${RoutesConstants.STORY.DEFAULT}${RoutesConstants.STORY.VIEW}`,
     authMiddleware,
     asyncHandler(StoryController.viewStory)
 );
 
 // Get story viewers
 router.get(
-    RoutesConstants.STORY.VIEWERS,
+    `${RoutesConstants.STORY.DEFAULT}${RoutesConstants.STORY.VIEWERS}`,
     authMiddleware,
     asyncHandler(StoryController.getStoryViewers)
 );
