@@ -43,19 +43,22 @@ class StoryRepository {
         const story = await Story.findById(storyId).lean();
         if (!story || !story.views.length) return [];
 
-        const userIds = story.views.map(v => v.userId);
+        const userIds = story.views.map(v => typeof v === 'string' ? v : v.userId);
         const users = await User.find({ _id: { $in: userIds } })
             .select('name avatar email')
             .lean();
 
         // Merge user details with viewedAt time
         return story.views.map(v => {
-            const user = users.find(u => u._id.toString() === v.userId.toString());
+            const vId = typeof v === 'string' ? v : v.userId;
+            const viewedAt = typeof v === 'string' ? story.createdAt : v.viewedAt;
+            const user = users.find(u => u._id.toString() === vId.toString());
+            if (!user) return null;
             return {
                 ...user,
-                viewedAt: v.viewedAt
+                viewedAt
             };
-        }).filter(v => v._id); // Filter out any deleted users if any
+        }).filter(v => v !== null);
     }
 }
 

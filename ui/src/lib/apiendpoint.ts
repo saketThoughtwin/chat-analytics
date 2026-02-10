@@ -23,5 +23,10 @@ export const API_ENDPOINTS = {
     ANALYTICS: {
         DASHBOARD: '/analytics/dashboard',
         ACTIVE_USERS: (roomId: string) => `/analytics/chat/${roomId}/active`,
+    },
+    STORY: {
+        ALL: '/stories',
+        VIEW: (storyId: string) => `/stories/${storyId}/view`,
+        VIEWERS: (storyId: string) => `/stories/${storyId}/viewers`,
     }
 };

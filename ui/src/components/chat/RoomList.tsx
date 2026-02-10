@@ -26,6 +26,8 @@ import {
   Alert,
   CircularProgress,
   Fab,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -37,6 +39,7 @@ import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import CreateChatDialog from "./CreateChatDialog";
+import StoriesSection from "../stories/StoriesSection";
 
 // Utility function to get relative time
 const getRelativeTime = (dateString: string) => {
@@ -98,6 +101,9 @@ export default function RoomList() {
 
   // State to force re-render for time updates
   const [, setTimeUpdateTrigger] = useState(0);
+
+  // Tab State
+  const [currentTab, setCurrentTab] = useState(0);
 
   const handleHeaderMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setHeaderMenuAnchor(event.currentTarget);
@@ -285,238 +291,282 @@ export default function RoomList() {
           </Menu>
         </Box>
       </Box>
-      <Box sx={{ px: 3, pb: 2 }}>
-        {/* Placeholder for search if needed later */}
-      </Box>
-      <CreateChatDialog
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-      />
-      <List sx={{ overflowY: "auto", height: "calc(100% - 64px)" }}>
-        {loadingRooms ? (
-          <Box
-            sx={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              gap: 1,
-              opacity: 0.8,
-            }}
-          >
-            <CircularProgress size={28} />
-            <Typography variant="body2" color="text.secondary">
-              Loading chats...
-            </Typography>
-          </Box>
-        ) : rooms.length === 0 ? (
-          <Box
-            sx={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "text.secondary",
-            }}
-          >
-            No chats found
-          </Box>
-        ) : (
-          rooms.map((room) => {
-            const otherUser = getOtherParticipant(room);
-            const isOnline = onlineUsers.includes(otherUser?._id);
 
-            return (
-              <ListItem
-                key={room._id}
-                disablePadding
-                secondaryAction={
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <IconButton
-                      edge="end"
-                      aria-label="more"
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, room._id)}
-                      sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                    <Menu
-                      anchorEl={menuAnchor[room._id]}
-                      open={Boolean(menuAnchor[room._id])}
-                      onClose={() => handleMenuClose(room._id)}
-                      onClick={(e) => e.stopPropagation()}
-                      PaperProps={{
-                        elevation: 0,
-                        sx: {
-                          borderRadius: 3,
-                          mt: 1,
-                          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-                          border: "1px solid rgba(0,0,0,0.05)",
-                        },
-                      }}
-                    >
-                      <MenuItem
-                        onClick={() => handleDeleteClick(room._id)}
-                        sx={{
-                          color: "error.main",
-                          fontSize: "0.9rem",
-                          fontWeight: 500,
-                        }}
-                      >
-                        Delete Chat
-                      </MenuItem>
-                    </Menu>
-                  </Box>
-                }
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Tabs
+          value={currentTab}
+          onChange={(_, newValue) => setCurrentTab(newValue)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 48,
+            "& .MuiTab-root": {
+              fontWeight: 600,
+              color: "text.secondary",
+              "&.Mui-selected": {
+                color: "#4338ca",
+              }
+            },
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px 3px 0 0",
+              bgcolor: "#4338ca",
+            }
+          }}
+        >
+          <Tab label="Chats" />
+          <Tab label="Stories" />
+        </Tabs>
+      </Box>
+
+      <Divider />
+
+      <Box sx={{
+        height: "calc(100% - 145px)",
+        overflowY: "auto",
+        "&::-webkit-scrollbar": {
+          width: "4px",
+        },
+        "&::-webkit-scrollbar-track": {
+          background: "transparent",
+        },
+        "&::-webkit-scrollbar-thumb": {
+          background: "rgba(0,0,0,0.05)",
+          borderRadius: "10px",
+        },
+        "&:hover::-webkit-scrollbar-thumb": {
+          background: "rgba(0,0,0,0.1)",
+        },
+      }}>
+        {currentTab === 0 ? (
+          <List sx={{ p: 0 }}>
+            {loadingRooms ? (
+              <Box
                 sx={{
-                  px: 2,
-                  py: 0.5,
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 1,
+                  opacity: 0.8,
                 }}
               >
-                <ListItemButton
-                  selected={activeRoomId === room._id}
-                  onClick={() => setActiveRoom(room._id)}
-                  sx={{
-                    borderRadius: "16px",
-                    mb: 0.5,
-                    transition: "all 0.2s ease",
-                    "&.Mui-selected": {
-                      bgcolor: "rgba(255,255,255,0.6)", // More transparent/dimmer
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                      transform: "scale(1.01)",
-                      "&:hover": { bgcolor: "rgba(255,255,255,0.7)" },
-                    },
-                    "&:hover": { bgcolor: "rgba(0,0,0,0.03)" }, // Subtle dark hover instead of white
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Box sx={{ position: "relative" }}>
-                      <Avatar
-                        alt={otherUser?.name}
-                        src={otherUser?.avatar}
-                        sx={{
-                          width: 52,
-                          height: 52,
-                          border:
-                            activeRoomId === room._id
-                              ? "2px solid #6366f1"
-                              : "2px solid transparent",
-                          transition: "border 0.2s",
-                        }}
-                      >
-                        {otherUser?.name?.charAt(0)}
-                      </Avatar>
-                      {isOnline && (
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            bottom: 2,
-                            right: 2,
-                            width: 12,
-                            height: 12,
-                            bgcolor: "#22c55e",
-                            borderRadius: "50%",
-                            border: "2px solid white",
+                <CircularProgress size={28} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading chats...
+                </Typography>
+              </Box>
+            ) : rooms.length === 0 ? (
+              <Box
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "text.secondary",
+                }}
+              >
+                No chats found
+              </Box>
+            ) : (
+              rooms.map((room) => {
+                const otherUser = getOtherParticipant(room);
+                const isOnline = onlineUsers.includes(otherUser?._id);
+
+                return (
+                  <ListItem
+                    key={room._id}
+                    disablePadding
+                    secondaryAction={
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <IconButton
+                          edge="end"
+                          aria-label="more"
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, room._id)}
+                          sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                        <Menu
+                          anchorEl={menuAnchor[room._id]}
+                          open={Boolean(menuAnchor[room._id])}
+                          onClose={() => handleMenuClose(room._id)}
+                          onClick={(e) => e.stopPropagation()}
+                          PaperProps={{
+                            elevation: 0,
+                            sx: {
+                              borderRadius: 3,
+                              mt: 1,
+                              boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+                              border: "1px solid rgba(0,0,0,0.05)",
+                            },
                           }}
-                        />
-                      )}
-                    </Box>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Typography
-                          variant="subtitle1"
-                          fontWeight={activeRoomId === room._id ? "700" : "600"}
-                          color="text.primary"
-                          noWrap
-                          sx={{ flex: 1, mr: 1 }}
                         >
-                          {otherUser?.name || "Unknown"}
-                        </Typography>
-                        {(room.lastMessage?.createdAt || (room.lastMessage as any)?.timestamp) && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
+                          <MenuItem
+                            onClick={() => handleDeleteClick(room._id)}
                             sx={{
-                              fontSize: "0.7rem",
-                              flexShrink: 0,
-                              opacity: 0.7,
-                              whiteSpace: "nowrap"
+                              color: "error.main",
+                              fontSize: "0.9rem",
+                              fontWeight: 500,
                             }}
                           >
-                            {getRelativeTime(room.lastMessage!.createdAt || (room.lastMessage as any).timestamp)}
-                          </Typography>
-                        )}
+                            Delete Chat
+                          </MenuItem>
+                        </Menu>
                       </Box>
                     }
-                    secondary={
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
-                        <Typography
-                          variant="body2"
-                          color={
-                            room.unreadCount ? "text.primary" : "text.secondary"
-                          }
-                          fontWeight={room.unreadCount ? "600" : "400"}
-                          noWrap
-                          sx={{ flex: 1, mr: 1, opacity: 0.8 }}
-                        >
-                          {typingUsers[room._id]?.length > 0 ? (
-                            <span
-                              style={{ color: "#22c55e", fontWeight: "bold" }}
-                            >
-                              typing...
-                            </span>
-                          ) : room.lastMessage?.deleted ? (
-                            room.lastMessage.sender === currentUser?.id || room.lastMessage.read ? (
-                              ""
-                            ) : (
-                              <span style={{ fontStyle: "italic", opacity: 0.7 }}>
-                                This message was deleted
-                              </span>
-                            )
-                          ) : (room as any).lastMessagePreview ? (
-                            (room as any).lastMessagePreview
-                          ) : room.lastMessage?.type === "audio" ? (
-                            "🎤 Voice message"
-                          ) : (
-                            room.lastMessage?.message || "No messages yet"
+                    sx={{
+                      px: 2,
+                      py: 0.5,
+                    }}
+                  >
+                    <ListItemButton
+                      selected={activeRoomId === room._id}
+                      onClick={() => setActiveRoom(room._id)}
+                      sx={{
+                        borderRadius: "16px",
+                        mb: 0.5,
+                        transition: "all 0.2s ease",
+                        "&.Mui-selected": {
+                          bgcolor: "rgba(255,255,255,0.6)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                          transform: "scale(1.01)",
+                          "&:hover": { bgcolor: "rgba(255,255,255,0.7)" },
+                        },
+                        "&:hover": { bgcolor: "rgba(0,0,0,0.03)" },
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Box sx={{ position: "relative" }}>
+                          <Avatar
+                            alt={otherUser?.name}
+                            src={otherUser?.avatar}
+                            sx={{
+                              width: 52,
+                              height: 52,
+                              border:
+                                activeRoomId === room._id
+                                  ? "2px solid #6366f1"
+                                  : "2px solid transparent",
+                              transition: "border 0.2s",
+                            }}
+                          >
+                            {otherUser?.name?.charAt(0)}
+                          </Avatar>
+                          {isOnline && (
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                bottom: 2,
+                                right: 2,
+                                width: 12,
+                                height: 12,
+                                bgcolor: "#22c55e",
+                                borderRadius: "50%",
+                                border: "2px solid white",
+                              }}
+                            />
                           )}
-                        </Typography>
-                        {(room.unreadCount ?? 0) > 0 && (
-                          <Box
-                            sx={{
-                              bgcolor: "#6366f1",
-                              color: "white",
-                              borderRadius: "12px",
-                              px: 0.8,
-                              py: 0.2,
-                              minWidth: "18px",
-                              height: "18px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "0.7rem",
-                              fontWeight: "bold",
-                              boxShadow: "0 2px 4px rgba(99, 102, 241, 0.3)",
-                              flexShrink: 0
-                            }}
-                          >
-                            {room.unreadCount}
+                        </Box>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <Typography
+                              variant="subtitle1"
+                              fontWeight={activeRoomId === room._id ? "700" : "600"}
+                              color="text.primary"
+                              noWrap
+                              sx={{ flex: 1, mr: 1 }}
+                            >
+                              {otherUser?.name || "Unknown"}
+                            </Typography>
+                            {(room.lastMessage?.createdAt || (room.lastMessage as any)?.timestamp) && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                  fontSize: "0.7rem",
+                                  flexShrink: 0,
+                                  opacity: 0.7,
+                                  whiteSpace: "nowrap"
+                                }}
+                              >
+                                {getRelativeTime(room.lastMessage!.createdAt || (room.lastMessage as any).timestamp)}
+                              </Typography>
+                            )}
                           </Box>
-                        )}
-                      </Box>
-                    }
-                    sx={{ my: 0, ml: 1, pr: 1 }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })
+                        }
+                        secondary={
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
+                            <Typography
+                              variant="body2"
+                              color={
+                                room.unreadCount ? "text.primary" : "text.secondary"
+                              }
+                              fontWeight={room.unreadCount ? "600" : "400"}
+                              noWrap
+                              sx={{ flex: 1, mr: 1, opacity: 0.8 }}
+                            >
+                              {typingUsers[room._id]?.length > 0 ? (
+                                <span
+                                  style={{ color: "#22c55e", fontWeight: "bold" }}
+                                >
+                                  typing...
+                                </span>
+                              ) : room.lastMessage?.deleted ? (
+                                room.lastMessage.sender === currentUser?.id || room.lastMessage.read ? (
+                                  ""
+                                ) : (
+                                  <span style={{ fontStyle: "italic", opacity: 0.7 }}>
+                                    This message was deleted
+                                  </span>
+                                )
+                              ) : (room as any).lastMessagePreview ? (
+                                (room as any).lastMessagePreview
+                              ) : room.lastMessage?.type === "audio" ? (
+                                "🎤 Voice message"
+                              ) : (
+                                room.lastMessage?.message || "No messages yet"
+                              )}
+                            </Typography>
+                            {(room.unreadCount ?? 0) > 0 && (
+                              <Box
+                                sx={{
+                                  bgcolor: "#6366f1",
+                                  color: "white",
+                                  borderRadius: "12px",
+                                  px: 0.8,
+                                  py: 0.2,
+                                  minWidth: "18px",
+                                  height: "18px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "0.7rem",
+                                  fontWeight: "bold",
+                                  boxShadow: "0 2px 4px rgba(99, 102, 241, 0.3)",
+                                  flexShrink: 0
+                                }}
+                              >
+                                {room.unreadCount}
+                              </Box>
+                            )}
+                          </Box>
+                        }
+                        sx={{ my: 0, ml: 1, pr: 1 }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })
+            )}
+          </List>
+        ) : (
+          <StoriesSection />
         )}
-      </List>
+      </Box>
 
       {/* Deletion Confirmation Dialog */}
       <Dialog
@@ -617,9 +667,6 @@ export default function RoomList() {
                     size="small"
                     onClick={() => {
                       // Optional: Navigate to chat or unstar
-                      // For now just unstar
-                      // But we need toggleStarMessage here which is not imported
-                      // Let's just show them for now.
                     }}
                   >
                     <StarIcon fontSize="small" sx={{ color: "#fbbf24" }} />
@@ -636,67 +683,58 @@ export default function RoomList() {
         </DialogActions>
       </Dialog>
 
-      {/* Success Snackbar */}
-      {/* <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbarOpen(false)}
-          severity="success"
-          sx={{ width: "100%" }}
-          variant="filled"
-        >
-          Chat deleted successfully!
-        </Alert>
-      </Snackbar> */}
+      <CreateChatDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+
       {/* Floating Action Button for New Chat */}
-      <Fab
-        color="primary"
-        aria-label="add"
-        onClick={() => setCreateDialogOpen(true)}
-        sx={{
-          position: "absolute",
-          bottom: 24,
-          right: 24,
-          width: 44,
-          height: 44,
-          minHeight: 44,
-          bgcolor: "#6366f1",
-          "&:hover": {
-            bgcolor: "#4f46e5",
-            transform: "scale(1.1)",
-          },
-          transition: "all 0.2s",
-          boxShadow: "0 4px 20px rgba(99, 102, 241, 0.4)",
-        }}
-      >
-        <Box
+      {currentTab === 0 && (
+        <Fab
+          color="primary"
+          aria-label="add"
+          onClick={() => setCreateDialogOpen(true)}
           sx={{
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "absolute",
+            bottom: 24,
+            right: 24,
+            width: 44,
+            height: 44,
+            minHeight: 44,
+            bgcolor: "#6366f1",
+            "&:hover": {
+              bgcolor: "#4f46e5",
+              transform: "scale(1.1)",
+            },
+            transition: "all 0.2s",
+            boxShadow: "0 4px 20px rgba(99, 102, 241, 0.4)",
           }}
         >
-          <ChatIcon sx={{ fontSize: 28 }} />
-          <AddIcon
+          <Box
             sx={{
-              position: "absolute",
-              fontSize: 14,
-              color: "#6366f1",
-              bgcolor: "white",
-              borderRadius: "50%",
-              p: 0.1,
-              top: 2,
-              right: -2,
-              border: "1px solid #6366f1",
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          />
-        </Box>
-      </Fab>
+          >
+            <ChatIcon sx={{ fontSize: 28 }} />
+            <AddIcon
+              sx={{
+                position: "absolute",
+                fontSize: 14,
+                color: "#6366f1",
+                bgcolor: "white",
+                borderRadius: "50%",
+                p: 0.1,
+                top: 2,
+                right: -2,
+                border: "1px solid #6366f1",
+              }}
+            />
+          </Box>
+        </Fab>
+      )}
     </Box>
   );
 }

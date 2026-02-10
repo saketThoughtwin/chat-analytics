@@ -30,6 +30,26 @@ interface Room {
   unreadCount?: number;
 }
 
+export interface Story {
+  _id: string;
+  userId: string;
+  mediaUrl: string;
+  type: 'image' | 'video';
+  views: any[];
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface GroupedStory {
+  user: {
+    _id: string;
+    name: string;
+    avatar?: string;
+    email: string;
+  };
+  stories: Story[];
+}
+
 interface ChatState {
   rooms: Room[];
   loadingRooms: boolean;
@@ -44,6 +64,8 @@ interface ChatState {
   page: number;
   activeRoomUnreadCount: number;
   activeRoomFirstUnreadId: string | null;
+  stories: GroupedStory[];
+  loadingStories: boolean;
   error: string | null;
 
   fetchRooms: () => Promise<void>;
@@ -59,6 +81,12 @@ interface ChatState {
   deleteMessage: (messageId: string) => Promise<void>;
   toggleStarMessage: (messageId: string, starred: boolean) => Promise<void>;
   fetchAllStarredMessages: () => Promise<Message[]>;
+
+  // Stories
+  fetchStories: () => Promise<void>;
+  postStory: (file: File) => Promise<void>;
+  viewStory: (storyId: string) => Promise<void>;
+  fetchStoryViewers: (storyId: string) => Promise<any[]>;
 
   // Socket event handlers
   initSocketEvents: () => void;
@@ -79,6 +107,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   page: 1,
   activeRoomUnreadCount: 0,
   activeRoomFirstUnreadId: null,
+  stories: [],
+  loadingStories: false,
   error: null,
 
   fetchRooms: async () => {
@@ -754,6 +784,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     });
 
+    socket.on("story_viewed", ({ storyId, viewerId, viewsCount }) => {
+      set((state) => {
+        const newStories = state.stories.map((group) => {
+          const updatedStories = group.stories.map((s) => {
+            if (s._id === storyId) {
+              const hasViewed = s.views.some((v: any) => (v.userId || v) === viewerId);
+              return {
+                ...s,
+                views: hasViewed ? s.views : [...s.views, { userId: viewerId, viewedAt: new Date().toISOString() }]
+              };
+            }
+            return s;
+          });
+          return { ...group, stories: updatedStories };
+        });
+        return { stories: newStories };
+      });
+    });
+
   },
   reset: () => {
     set({
@@ -766,9 +815,54 @@ export const useChatStore = create<ChatState>((set, get) => ({
       loading: false,
       loadingMore: false,
       hasMore: true,
-      page: 1,
+      activeRoomUnreadCount: 0,
+      activeRoomFirstUnreadId: null,
       error: null,
       messagesCache: {},
+      stories: [],
+      loadingStories: false,
     });
+  },
+
+  fetchStories: async () => {
+    set({ loadingStories: true });
+    try {
+      const response = await api.get(API_ENDPOINTS.STORY.ALL);
+      set({ stories: response.data || [], loadingStories: false });
+    } catch (error) {
+      console.error("Failed to fetch stories", error);
+      set({ error: "Failed to fetch stories", loadingStories: false });
+    }
+  },
+
+  postStory: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      await api.post(API_ENDPOINTS.STORY.ALL, formData, MULTIPART_HEADERS);
+      get().fetchStories(); // Refresh stories list
+    } catch (error) {
+      console.error("Failed to post story", error);
+      throw error;
+    }
+  },
+
+  viewStory: async (storyId: string) => {
+    try {
+      await api.post(API_ENDPOINTS.STORY.VIEW(storyId));
+      // Optionally update local state to show as viewed, but fetchStories will also handle it
+    } catch (error) {
+      console.error("Failed to view story", error);
+    }
+  },
+
+  fetchStoryViewers: async (storyId: string) => {
+    try {
+      const response = await api.get(API_ENDPOINTS.STORY.VIEWERS(storyId));
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch story viewers", error);
+      return [];
+    }
   },
 }));
