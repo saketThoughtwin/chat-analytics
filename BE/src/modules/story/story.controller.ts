@@ -4,7 +4,7 @@ import StoryService from "./story.service";
 class StoryController {
     async createStory(req: Request, res: Response) {
         try {
-            const userId = (req as any).user.id;
+            const userId = (req as any).userId;
             const file = req.file;
 
             if (!file) {
@@ -35,7 +35,7 @@ class StoryController {
 
     async viewStory(req: Request, res: Response) {
         try {
-            const userId = (req as any).user.id;
+            const userId = (req as any).userId;
             const { storyId } = req.params;
 
             await StoryService.viewStory(storyId, userId);
