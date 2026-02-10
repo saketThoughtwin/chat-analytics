@@ -18,6 +18,13 @@ class StoryController {
             const type = isVideo ? 'video' : 'image';
 
             const story = await StoryService.createStory(userId, mediaUrl, type);
+
+            // Emit real-time notification for new story
+            io.emit("new_story", {
+                userId,
+                storyId: story._id
+            });
+
             return res.status(201).json(story);
         } catch (error: any) {
             console.error("Error creating story:", error);

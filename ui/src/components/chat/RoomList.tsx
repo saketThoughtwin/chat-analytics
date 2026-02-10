@@ -76,8 +76,25 @@ export default function RoomList() {
     loadingRooms,
     reset,
     fetchAllStarredMessages,
+    stories,
+    fetchStories,
   } = useChatStore();
   const { user: currentUser, logout } = useAuthStore();
+
+  // Calculate if there are any unread stories from others
+  const hasUnreadStories = React.useMemo(() => {
+    if (!currentUser || !stories.length) return false;
+
+    return stories.some(group => {
+      // Skip my own stories
+      if (group.user._id === currentUser.id) return false;
+
+      // Return true if ANY story in this group is unread
+      return group.stories.some(story => {
+        return !story.views.some((v: any) => (v.userId?.toString() || v.toString()) === currentUser.id);
+      });
+    });
+  }, [stories, currentUser]);
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{
@@ -122,7 +139,8 @@ export default function RoomList() {
 
   useEffect(() => {
     fetchRooms();
-  }, [fetchRooms]);
+    fetchStories();
+  }, [fetchRooms, fetchStories]);
 
   // Update relative times every 30 seconds
   useEffect(() => {
@@ -314,7 +332,24 @@ export default function RoomList() {
           }}
         >
           <Tab label="Chats" />
-          <Tab label="Stories" />
+          <Tab
+            label={
+              <Badge
+                variant="dot"
+                invisible={!hasUnreadStories}
+                color="primary"
+                sx={{
+                  "& .MuiBadge-badge": {
+                    right: -10,
+                    top: 0,
+                    bgcolor: "#4338ca"
+                  }
+                }}
+              >
+                Stories
+              </Badge>
+            }
+          />
         </Tabs>
       </Box>
 

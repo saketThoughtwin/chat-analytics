@@ -784,12 +784,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     });
 
-    socket.on("story_viewed", ({ storyId, viewerId, viewsCount }) => {
+    socket.on("story_viewed", ({ storyId, viewerId }) => {
       set((state) => {
         const newStories = state.stories.map((group) => {
           const updatedStories = group.stories.map((s) => {
             if (s._id === storyId) {
-              const hasViewed = s.views.some((v: any) => (v.userId || v) === viewerId);
+              const hasViewed = s.views.some((v: any) => (v.userId?.toString() || v.toString()) === viewerId.toString());
               return {
                 ...s,
                 views: hasViewed ? s.views : [...s.views, { userId: viewerId, viewedAt: new Date().toISOString() }]
@@ -801,6 +801,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
         return { stories: newStories };
       });
+    });
+
+    socket.on("new_story", () => {
+      get().fetchStories();
     });
 
   },

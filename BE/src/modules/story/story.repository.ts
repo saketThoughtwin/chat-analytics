@@ -29,7 +29,7 @@ class StoryRepository {
         const story = await Story.findById(storyId);
         if (!story) return null;
 
-        const alreadyViewed = story.views.some(v => v.userId === userId);
+        const alreadyViewed = story.views.some(v => v.userId.toString() === userId.toString());
         if (alreadyViewed) return story;
 
         return Story.findByIdAndUpdate(
