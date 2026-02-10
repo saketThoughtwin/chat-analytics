@@ -47,11 +47,10 @@ class StoryController {
             const userId = (req as any).userId;
             const { storyId } = req.params;
 
-            await StoryService.viewStory(storyId, userId);
+            const { story, isNewView } = await StoryService.viewStory(storyId, userId);
 
-            // Emit real-time update to story owner
-            const story = await StoryRepository.findById(storyId);
-            if (story && story.userId !== userId) {
+            // Emit real-time update to story owner ONLY if it's a new view
+            if (isNewView && story && story.userId !== userId) {
                 io.to(story.userId).emit("story_viewed", {
                     storyId,
                     viewerId: userId,

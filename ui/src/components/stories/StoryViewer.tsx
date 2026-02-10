@@ -56,10 +56,13 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
 
     // Mark as viewed
     useEffect(() => {
-        if (open && !isMyStory && currentStory) {
-            viewStory(currentStory._id);
+        if (open && !isMyStory && currentStory && currentUser) {
+            const hasViewed = currentStory.views.some((v: any) => (v.userId?.toString() || v.toString()) === currentUser.id.toString());
+            if (!hasViewed) {
+                viewStory(currentStory._id);
+            }
         }
-    }, [open, isMyStory, currentStory?._id, viewStory]);
+    }, [open, isMyStory, currentStory?._id, viewStory, currentUser]);
 
     // Fetch viewers
     useEffect(() => {

@@ -852,9 +852,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   viewStory: async (storyId: string) => {
+    const { user: currentUser } = useAuthStore.getState();
+    if (!currentUser) return;
+
     try {
       await api.post(API_ENDPOINTS.STORY.VIEW(storyId));
-      // Optionally update local state to show as viewed, but fetchStories will also handle it
+
+      // Update local state so unread indicator disappears immediately
+      set((state) => {
+        const newStories = state.stories.map((group) => {
+          const updatedStories = group.stories.map((s) => {
+            if (s._id === storyId) {
+              const hasViewed = s.views.some((v: any) => (v.userId?.toString() || v.toString()) === currentUser.id.toString());
+              if (hasViewed) return s;
+              return {
+                ...s,
+                views: [...s.views, { userId: currentUser.id, viewedAt: new Date().toISOString() }]
+              };
+            }
+            return s;
+          });
+          return { ...group, stories: updatedStories };
+        });
+        return { stories: newStories };
+      });
     } catch (error) {
       console.error("Failed to view story", error);
     }
