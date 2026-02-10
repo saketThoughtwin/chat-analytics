@@ -4,7 +4,7 @@ export interface IStory extends Document {
     userId: string;
     mediaUrl: string;
     type: 'image' | 'video';
-    views: string[]; // List of user IDs who viewed the story
+    views: { userId: string; viewedAt: Date }[]; // List of user IDs who viewed the story
     expiresAt: Date;
     createdAt: Date;
 }
@@ -14,7 +14,10 @@ const StorySchema = new Schema<IStory>(
         userId: { type: String, required: true, index: true },
         mediaUrl: { type: String, required: true },
         type: { type: String, enum: ['image', 'video'], required: true },
-        views: { type: [String], default: [] },
+        views: [{
+            userId: { type: String, required: true },
+            viewedAt: { type: Date, default: Date.now }
+        }],
         expiresAt: {
             type: Date,
             required: true,

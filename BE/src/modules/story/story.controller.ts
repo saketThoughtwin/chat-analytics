@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import StoryService from "./story.service";
+import { io } from "../../realtime/socket.server";
+import StoryRepository from "./story.repository";
 
 class StoryController {
     async createStory(req: Request, res: Response) {
@@ -39,6 +41,17 @@ class StoryController {
             const { storyId } = req.params;
 
             await StoryService.viewStory(storyId, userId);
+
+            // Emit real-time update to story owner
+            const story = await StoryRepository.findById(storyId);
+            if (story && story.userId !== userId) {
+                io.to(story.userId).emit("story_viewed", {
+                    storyId,
+                    viewerId: userId,
+                    viewsCount: story.views.length
+                });
+            }
+
             return res.status(200).json({ message: "Story viewed" });
         } catch (error: any) {
             console.error("Error viewing story:", error);

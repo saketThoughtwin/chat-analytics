@@ -25,22 +25,37 @@ class StoryRepository {
     }
 
     async addView(storyId: string, userId: string) {
+        // Prevent duplicate views from the same user
+        const story = await Story.findById(storyId);
+        if (!story) return null;
+
+        const alreadyViewed = story.views.some(v => v.userId === userId);
+        if (alreadyViewed) return story;
+
         return Story.findByIdAndUpdate(
             storyId,
-            { $addToSet: { views: userId } },
+            { $push: { views: { userId, viewedAt: new Date() } } },
             { new: true }
         );
     }
 
     async getStoryViewers(storyId: string) {
-        const story = await Story.findById(storyId).select('views').lean();
+        const story = await Story.findById(storyId).lean();
         if (!story || !story.views.length) return [];
 
-        // Fetch viewer details (name, avatar)
-        const User = (await import("../users/user.model")).default;
-        return User.find({ _id: { $in: story.views } })
+        const userIds = story.views.map(v => v.userId);
+        const users = await User.find({ _id: { $in: userIds } })
             .select('name avatar email')
             .lean();
+
+        // Merge user details with viewedAt time
+        return story.views.map(v => {
+            const user = users.find(u => u._id.toString() === v.userId.toString());
+            return {
+                ...user,
+                viewedAt: v.viewedAt
+            };
+        }).filter(v => v._id); // Filter out any deleted users if any
     }
 }
 
