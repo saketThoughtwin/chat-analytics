@@ -49,16 +49,28 @@ class StoryRepository {
         const story = await Story.findById(storyId).lean();
         if (!story || !story.views.length) return [];
 
-        const userIds = story.views.map(v => typeof v === 'string' ? v : v.userId);
+        // Unique the views by userId, keeping only the first (earliest) view
+        const uniqueViews: any[] = [];
+        const seenUserIds = new Set();
+
+        for (const view of story.views) {
+            const userId = (typeof view === 'string' ? view : view.userId).toString();
+            if (!seenUserIds.has(userId)) {
+                seenUserIds.add(userId);
+                uniqueViews.push(view);
+            }
+        }
+
+        const userIds = uniqueViews.map(v => typeof v === 'string' ? v : v.userId);
         const users = await User.find({ _id: { $in: userIds } })
             .select('name avatar email')
             .lean();
 
         // Merge user details with viewedAt time
-        return story.views.map(v => {
-            const vId = typeof v === 'string' ? v : v.userId;
+        return uniqueViews.map(v => {
+            const vId = (typeof v === 'string' ? v : v.userId).toString();
             const viewedAt = typeof v === 'string' ? story.createdAt : v.viewedAt;
-            const user = users.find(u => u._id.toString() === vId.toString());
+            const user = users.find(u => u._id.toString() === vId);
             if (!user) return null;
             return {
                 ...user,

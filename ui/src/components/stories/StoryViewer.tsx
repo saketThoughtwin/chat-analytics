@@ -67,7 +67,13 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
     // Fetch viewers
     useEffect(() => {
         if (open && isMyStory && currentStory) {
-            fetchStoryViewers(currentStory._id).then(setViewers);
+            fetchStoryViewers(currentStory._id).then((data) => {
+                // Client-side unique check as secondary safety
+                const unique = data.filter((v: any, index: number, self: any[]) =>
+                    index === self.findIndex((t) => t._id === v._id)
+                );
+                setViewers(unique);
+            });
         }
     }, [open, isMyStory, currentStory?._id, fetchStoryViewers, stories]);
 
