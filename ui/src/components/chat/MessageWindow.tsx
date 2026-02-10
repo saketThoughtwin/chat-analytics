@@ -276,6 +276,8 @@ export default function MessageWindow() {
     hasMore,
     loadMoreMessages,
     sendMedia,
+    activeRoomFirstUnreadId,
+    activeRoomUnreadCount,
     deleteMessage,
     toggleStarMessage,
   } = useChatStore();
@@ -833,6 +835,52 @@ export default function MessageWindow() {
                           fontWeight="500"
                         >
                           {getDateLabel(msg.createdAt)}
+                        </Typography>
+                      </Paper>
+                    </Box>
+                  )}
+                  {msg._id === activeRoomFirstUnreadId && activeRoomUnreadCount > 0 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        my: 3,
+                        position: "relative",
+                        "&::before": {
+                          content: '""',
+                          position: "absolute",
+                          top: "50%",
+                          left: 0,
+                          right: 0,
+                          height: "1px",
+                          bgcolor: "rgba(99, 102, 241, 0.15)",
+                          zIndex: 0,
+                        },
+                      }}
+                    >
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          bgcolor: "#f5f7ff",
+                          px: 2,
+                          py: 0.8,
+                          borderRadius: "20px",
+                          border: "1px solid rgba(99, 102, 241, 0.2)",
+                          zIndex: 1,
+                          boxShadow: "0 2px 10px rgba(99, 102, 241, 0.05)",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "#6366f1",
+                            fontWeight: "700",
+                            textTransform: "uppercase",
+                            letterSpacing: "1px",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          {activeRoomUnreadCount} New Message{activeRoomUnreadCount > 1 ? "s" : ""}
                         </Typography>
                       </Paper>
                     </Box>

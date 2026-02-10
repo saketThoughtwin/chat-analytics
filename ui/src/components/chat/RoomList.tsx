@@ -202,7 +202,6 @@ export default function RoomList() {
             C
           </Avatar>
           <Typography
-            variant="h5"
             fontWeight="800"
             sx={{
               background: "linear-gradient(45deg, #1e1b4b, #4338ca)",
@@ -213,7 +212,7 @@ export default function RoomList() {
               letterSpacing: "-0.5px",
             }}
           >
-            Chats
+            Chat-Analytics
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>

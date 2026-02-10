@@ -42,6 +42,8 @@ interface ChatState {
   loadingMore: boolean;
   hasMore: boolean;
   page: number;
+  activeRoomUnreadCount: number;
+  activeRoomFirstUnreadId: string | null;
   error: string | null;
 
   fetchRooms: () => Promise<void>;
@@ -75,6 +77,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadingMore: false,
   hasMore: true,
   page: 1,
+  activeRoomUnreadCount: 0,
+  activeRoomFirstUnreadId: null,
   error: null,
 
   fetchRooms: async () => {
@@ -102,7 +106,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setActiveRoom: (roomId) => {
     if (roomId) {
+      const room = get().rooms.find(r => r._id === roomId);
+      const initialUnreadCount = room?.unreadCount || 0;
       const cachedMessages = get().messagesCache[roomId];
+
       // Atomically set active room and messages (from cache or empty)
       // This prevents "ghost" messages from the previous room
       set({
@@ -111,7 +118,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         loading: !cachedMessages, // Only show loader if we don't have cache
         error: null,
         page: 1,
-        hasMore: true
+        hasMore: true,
+        activeRoomUnreadCount: initialUnreadCount,
+        activeRoomFirstUnreadId: null, // Will be set in markAsRead or fetchMessages
       });
 
       get().fetchMessages(roomId);
@@ -301,12 +310,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
           );
         }
 
+        const currentUserId = useAuthStore.getState().user?.id;
+        const unreadMessagesInRoom = state.messages.filter(
+          (m) => m.roomId === roomId && !m.read && m.sender !== currentUserId
+        );
+        const firstUnreadId = unreadMessagesInRoom.length > 0 ? unreadMessagesInRoom[0]._id : null;
+
         return {
           rooms: state.rooms.map((r) =>
             r._id === roomId ? { ...r, unreadCount: 0 } : r
           ),
           messages: newMessages,
           messagesCache: newCache,
+          activeRoomFirstUnreadId: state.activeRoomFirstUnreadId || firstUnreadId,
         };
       });
 

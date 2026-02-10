@@ -39,5 +39,11 @@ export const RoutesConstants = {
         USER_MESSAGES: '/users/:userId/messages',
         ROOM_STATS: '/rooms/:roomId/stats',
         USER_STATS: '/users/:userId/stats'
+    },
+    STORY: {
+        DEFAULT: '/stories',
+        ALL: '/',
+        VIEW: '/:storyId/view',
+        VIEWERS: '/:storyId/viewers'
     }
 };

@@ -8,6 +8,7 @@ import authRoutes from "@routes/auth.routes"
 import profileRoutes from "@routes/profile.routes";
 import chatRoutes from "@routes/chat.routes";
 import analyticsRoutes from "@routes/analytics.routes";
+import storyRoutes from "@routes/story.routes";
 import { globalErrorHandler } from '@middlewares/error.middleware';
 import { RoutesConstants } from './constants/route.constants';
 const app = express();
@@ -28,6 +29,7 @@ app.get(RoutesConstants.HEALTH, (_, res) => res.send("OK"));
 app.use('/api', profileRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', analyticsRoutes);
+app.use('/api', storyRoutes);
 app.use(globalErrorHandler);
 app.get('/', (_, res) => res.send('Chat & Analytics API Running'));
 
