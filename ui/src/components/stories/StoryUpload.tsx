@@ -30,8 +30,24 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
+            if (selectedFile.type.startsWith("video")) {
+                const video = document.createElement("video");
+                video.preload = "metadata";
+                video.onloadedmetadata = () => {
+                    window.URL.revokeObjectURL(video.src);
+                    if (video.duration > 15) {
+                        alert("Videos must be 15 seconds or shorter.");
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        return;
+                    }
+                    setFile(selectedFile);
+                    setPreview(URL.createObjectURL(selectedFile));
+                };
+                video.src = URL.createObjectURL(selectedFile);
+            } else {
+                setFile(selectedFile);
+                setPreview(URL.createObjectURL(selectedFile));
+            }
         }
     };
 

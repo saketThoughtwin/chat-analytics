@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
     Dialog,
     Box,
@@ -35,32 +35,110 @@ const getViewerTime = (dateString: string) => {
 };
 
 export default function StoryViewer({ open, onClose, group }: StoryViewerProps) {
+    const { user: currentUser } = useAuthStore();
+    const { stories, viewStory, fetchStoryViewers, deleteStory } = useChatStore();
+
     const [currentIndex, setCurrentIndex] = useState(0);
     const [progress, setProgress] = useState(0);
-    const { stories, viewStory, fetchStoryViewers, deleteStory } = useChatStore();
-    const { user: currentUser } = useAuthStore();
     const [viewers, setViewers] = useState<any[]>([]);
     const [showViewers, setShowViewers] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
 
-    const duration = 5000;
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const currentIndexRef = useRef(currentIndex);
 
+    // Keep ref in sync
+    useEffect(() => {
+        currentIndexRef.current = currentIndex;
+    }, [currentIndex]);
+
+    const currentStory = group.stories[currentIndex];
+    const isMyStory = group.user._id === currentUser?.id;
+
+    const STORY_DURATION = 15000; // 15 seconds per story
+
+    // Go to next story
+    const goToNext = useCallback(() => {
+        const idx = currentIndexRef.current;
+        if (idx < group.stories.length - 1) {
+            setCurrentIndex(idx + 1);
+            setProgress(0);
+        } else {
+            onClose();
+        }
+    }, [group.stories.length, onClose]);
+
+    // Go to previous story
+    const goToPrev = useCallback(() => {
+        const idx = currentIndexRef.current;
+        if (idx > 0) {
+            setCurrentIndex(idx - 1);
+            setProgress(0);
+        }
+    }, []);
+
+    // 1. Reset state when viewer opens
     useEffect(() => {
         if (open) {
             setProgress(0);
             setShowViewers(false);
             setViewers([]);
-            // Basic safety index check
-            if (currentIndex >= group.stories.length) {
-                setCurrentIndex(0);
-            }
+            setIsPaused(false);
+
+            // Jump to first unread story
+            const firstUnreadIndex = group.stories.findIndex(s => {
+                const viewerId = currentUser?.id?.toString();
+                return !s.views.some((v: any) => (v.userId?.toString() || v.toString()) === viewerId);
+            });
+            setCurrentIndex(firstUnreadIndex === -1 ? 0 : firstUnreadIndex);
         }
-    }, [open, currentIndex, group.stories.length]);
+    }, [open]);
 
-    const currentStory = group.stories[currentIndex];
-    const isMyStory = group.user._id === currentUser?.id;
+    // 2. Reset progress on index change
+    useEffect(() => {
+        setProgress(0);
+        setViewers([]);
+        setShowViewers(false);
+    }, [currentIndex]);
 
+    // 3. THE TIMER - runs a simple interval that increments progress
+    useEffect(() => {
+        // Clear any existing timer
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+
+        if (!open || isPaused || showViewers || deleteConfirmOpen) return;
+
+        const step = 100 / (STORY_DURATION / 100); // progress increment per 100ms
+
+        timerRef.current = setInterval(() => {
+            setProgress(prev => {
+                const next = prev + step;
+                return next;
+            });
+        }, 100);
+
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        };
+    }, [open, isPaused, showViewers, deleteConfirmOpen, currentIndex]);
+
+    // 4. Watch progress and advance when it reaches 100
+    useEffect(() => {
+        if (progress >= 100) {
+            goToNext();
+        }
+    }, [progress, goToNext]);
+
+    // 5. Mark as Viewed
     useEffect(() => {
         if (open && !isMyStory && currentStory && currentUser) {
             const hasViewed = currentStory.views.some((v: any) => (v.userId?.toString() || v.toString()) === currentUser.id.toString());
@@ -70,6 +148,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
         }
     }, [open, isMyStory, currentStory?._id, viewStory, currentUser]);
 
+    // 6. Fetch Viewers
     useEffect(() => {
         if (open && isMyStory && currentStory) {
             fetchStoryViewers(currentStory._id).then((data) => {
@@ -81,49 +160,16 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
         }
     }, [open, isMyStory, currentStory?._id, fetchStoryViewers, stories]);
 
-    const nextStory = useCallback(() => {
-        if (currentIndex < group.stories.length - 1) {
-            setCurrentIndex((prev) => prev + 1);
-            setProgress(0);
-        } else {
-            onClose();
-        }
-    }, [currentIndex, group.stories.length, onClose]);
-
-    const prevStory = () => {
-        if (currentIndex > 0) {
-            setCurrentIndex((prev) => prev - 1);
-            setProgress(0);
-        }
-    };
-
-    useEffect(() => {
-        if (!open || showViewers || deleteConfirmOpen) return;
-
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 100) {
-                    nextStory();
-                    return 0;
-                }
-                return prev + (100 / (duration / 100));
-            });
-        }, 100);
-
-        return () => clearInterval(interval);
-    }, [open, nextStory, showViewers, deleteConfirmOpen]);
-
-    const videoRef = React.useRef<HTMLVideoElement>(null);
-
+    // 7. Video play/pause control
     useEffect(() => {
         if (videoRef.current) {
-            if (showViewers || deleteConfirmOpen) {
+            if (showViewers || deleteConfirmOpen || isPaused) {
                 videoRef.current.pause();
             } else if (open) {
                 videoRef.current.play().catch(e => console.log("Auto-play blocked", e));
             }
         }
-    }, [showViewers, deleteConfirmOpen, open]);
+    }, [showViewers, deleteConfirmOpen, isPaused, open, currentIndex]);
 
     const handleDelete = async () => {
         if (!currentStory) return;
@@ -132,7 +178,6 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
             await deleteStory(currentStory._id);
             setDeleteConfirmOpen(false);
             if (group.stories.length > 1) {
-                // Remove current story from UI immediately or let store update reflect
                 if (currentIndex >= group.stories.length - 1) {
                     setCurrentIndex(Math.max(0, group.stories.length - 2));
                 }
@@ -184,7 +229,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                         <LinearProgress
                             key={index}
                             variant="determinate"
-                            value={index === currentIndex ? progress : index < currentIndex ? 100 : 0}
+                            value={index === currentIndex ? Math.min(progress, 100) : index < currentIndex ? 100 : 0}
                             sx={{
                                 flex: 1,
                                 height: 4,
@@ -242,15 +287,17 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                 >
                     {currentStory.type === "video" ? (
                         <video
+                            key={currentStory._id}
                             ref={videoRef}
                             src={currentStory.mediaUrl}
-                            autoPlay={!showViewers && !deleteConfirmOpen}
+                            autoPlay
+                            muted={false}
                             loop={false}
-                            onEnded={nextStory}
                             style={{ maxWidth: "100%", maxHeight: "100%" }}
                         />
                     ) : (
                         <img
+                            key={currentStory._id}
                             src={currentStory.mediaUrl}
                             alt="Story"
                             style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
@@ -269,11 +316,11 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                 >
                     <Box
                         sx={{ flex: 1, pointerEvents: "auto", cursor: "pointer" }}
-                        onClick={prevStory}
+                        onClick={goToPrev}
                     />
                     <Box
                         sx={{ flex: 1, pointerEvents: "auto", cursor: "pointer" }}
-                        onClick={nextStory}
+                        onClick={goToNext}
                     />
                 </Box>
 
@@ -287,35 +334,47 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        gap: 4,
+                        gap: 2,
                         zIndex: 10,
                     }}
                 >
                     {isMyStory && (
-                        <IconButton
-                            onClick={() => setDeleteConfirmOpen(true)}
-                            sx={{
-                                color: "white",
-                                bgcolor: "rgba(255,255,255,0.1)",
-                                "&:hover": { bgcolor: "rgba(255,0,0,0.2)" }
-                            }}
-                        >
-                            <DeleteIcon />
-                        </IconButton>
-                    )}
-
-                    {isMyStory && (
                         <Box
                             sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                cursor: "pointer",
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                bgcolor: 'rgba(255,255,255,0.1)',
+                                px: 2,
+                                py: 0.5,
+                                borderRadius: 5
                             }}
-                            onClick={() => setShowViewers(!showViewers)}
                         >
-                            <VisibilityIcon sx={{ mb: 0.5 }} />
-                            <Typography variant="body2">{currentStory.views.length}</Typography>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    cursor: "pointer",
+                                }}
+                                onClick={() => setShowViewers(!showViewers)}
+                            >
+                                <VisibilityIcon sx={{ mb: 0.2, fontSize: 20 }} />
+                                <Typography variant="caption">{currentStory.views.length}</Typography>
+                            </Box>
+
+                            <Box sx={{ width: '1px', height: '20px', bgcolor: 'rgba(255,255,255,0.2)' }} />
+
+                            <IconButton
+                                onClick={() => setDeleteConfirmOpen(true)}
+                                size="small"
+                                sx={{
+                                    color: "white",
+                                    "&:hover": { color: "#ef4444" }
+                                }}
+                            >
+                                <DeleteIcon sx={{ fontSize: 20 }} />
+                            </IconButton>
                         </Box>
                     )}
                 </Box>
