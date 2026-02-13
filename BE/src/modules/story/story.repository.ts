@@ -78,6 +78,10 @@ class StoryRepository {
             };
         }).filter(v => v !== null);
     }
+
+    async delete(storyId: string, userId: string) {
+        return Story.findOneAndDelete({ _id: storyId, userId });
+    }
 }
 
 export default new StoryRepository();

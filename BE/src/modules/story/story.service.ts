@@ -39,6 +39,10 @@ class StoryService {
     async getStoryViewers(storyId: string) {
         return StoryRepository.getStoryViewers(storyId);
     }
+
+    async deleteStory(storyId: string, userId: string) {
+        return StoryRepository.delete(storyId, userId);
+    }
 }
 
 export default new StoryService();

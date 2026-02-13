@@ -36,4 +36,11 @@ router.get(
     asyncHandler(StoryController.getStoryViewers)
 );
 
+// Delete story
+router.delete(
+    `${RoutesConstants.STORY.DEFAULT}${RoutesConstants.STORY.DELETE}`,
+    authMiddleware,
+    asyncHandler(StoryController.deleteStory)
+);
+
 export default router;

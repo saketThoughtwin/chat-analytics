@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     STORY: {
         ALL: '/stories',
         VIEW: (storyId: string) => `/stories/${storyId}/view`,
-        VIEWERS: (storyId: string) => `/stories/${storyId}/viewers`,
+        VIEWERS: (storyId: string) => `/stories/${storyId}/viewers',
+        DELETE: (storyId: string) => `/ stories / ${ storyId }`,
     }
 };

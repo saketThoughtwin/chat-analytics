@@ -87,6 +87,7 @@ interface ChatState {
   postStory: (file: File) => Promise<void>;
   viewStory: (storyId: string) => Promise<void>;
   fetchStoryViewers: (storyId: string) => Promise<any[]>;
+  deleteStory: (storyId: string) => Promise<void>;
 
   // Socket event handlers
   initSocketEvents: () => void;
@@ -807,6 +808,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       get().fetchStories();
     });
 
+    socket.on("story_deleted", ({ storyId, userId }) => {
+      set((state) => {
+        const newStories = state.stories.map((group) => {
+          if (group.user._id === userId) {
+            return {
+              ...group,
+              stories: group.stories.filter((s) => s._id !== storyId)
+            };
+          }
+          return group;
+        }).filter((group) => group.stories.length > 0);
+
+        return { stories: newStories };
+      });
+    });
+
   },
   reset: () => {
     set({
@@ -888,6 +905,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error("Failed to fetch story viewers", error);
       return [];
+    }
+  },
+
+  deleteStory: async (storyId: string) => {
+    try {
+      await api.delete(API_ENDPOINTS.STORY.DELETE(storyId));
+
+      set((state) => {
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser) return state;
+
+        const newStories = state.stories.map((group) => {
+          if (group.user._id === currentUser.id) {
+            return {
+              ...group,
+              stories: group.stories.filter((s) => s._id !== storyId)
+            };
+          }
+          return group;
+        }).filter((group) => group.stories.length > 0);
+
+        return { stories: newStories };
+      });
+    } catch (error) {
+      console.error("Failed to delete story", error);
+      throw error;
     }
   },
 }));

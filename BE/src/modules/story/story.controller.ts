@@ -75,6 +75,30 @@ class StoryController {
             return res.status(500).json({ message: error.message });
         }
     }
+
+    async deleteStory(req: Request, res: Response) {
+        try {
+            const userId = (req as any).userId;
+            const { storyId } = req.params;
+
+            const deletedStory = await StoryService.deleteStory(storyId, userId);
+
+            if (!deletedStory) {
+                return res.status(404).json({ message: "Story not found or unauthorized" });
+            }
+
+            // Emit event to notify that a story was deleted
+            io.emit("story_deleted", {
+                userId,
+                storyId
+            });
+
+            return res.status(200).json({ message: "Story deleted successfully" });
+        } catch (error: any) {
+            console.error("Error deleting story:", error);
+            return res.status(500).json({ message: error.message });
+        }
+    }
 }
 
 export default new StoryController();

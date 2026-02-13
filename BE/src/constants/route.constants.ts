@@ -44,6 +44,7 @@ export const RoutesConstants = {
         DEFAULT: '/stories',
         ALL: '/',
         VIEW: '/:storyId/view',
-        VIEWERS: '/:storyId/viewers'
+        VIEWERS: '/:storyId/viewers',
+        DELETE: '/:storyId'
     }
 };
