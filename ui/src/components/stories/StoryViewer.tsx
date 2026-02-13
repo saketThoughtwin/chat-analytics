@@ -7,7 +7,6 @@ import {
     Avatar,
     LinearProgress,
     Button,
-    Dialog as MuiDialog,
     DialogTitle,
     DialogContent,
     DialogActions,
@@ -367,7 +366,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
             </Dialog>
 
             {/* Delete Confirmation Modal */}
-            <MuiDialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
                 <DialogTitle>Delete status update?</DialogTitle>
                 <DialogContent>
                     <Typography>This status update will be deleted for everyone.</Typography>
@@ -378,7 +377,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                         {deleting ? "Deleting..." : "Delete"}
                     </Button>
                 </DialogActions>
-            </MuiDialog>
+            </Dialog>
         </>
     );
 }
