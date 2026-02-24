@@ -140,17 +140,17 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
         onClick={togglePlay}
         size="small"
         sx={{
-          bgcolor: isMe ? "rgba(255,255,255,0.2)" : "rgba(99, 102, 241, 0.1)",
-          color: isMe ? "white" : "#6366f1",
+          bgcolor: "transparent",
+          color: "#54656f", // WhatsApp dark gray
           "&:hover": {
-            bgcolor: isMe ? "rgba(255,255,255,0.3)" : "rgba(99, 102, 241, 0.2)",
+            bgcolor: "rgba(0,0,0,0.05)",
           },
         }}
       >
         {isPlaying ? (
-          <PauseIcon fontSize="small" />
+          <PauseIcon fontSize="medium" />
         ) : (
-          <PlayArrowIcon fontSize="small" />
+          <PlayArrowIcon fontSize="medium" />
         )}
       </IconButton>
 
@@ -163,32 +163,30 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
           max={duration || 100}
           onChange={handleSliderChange}
           sx={{
-            color: isMe ? "white" : "#6366f1",
-            height: 2,
-            padding: "8px 0",
+            color: "#667781", // WhatsApp gray for slider
+            height: 3,
+            padding: "13px 0",
             "& .MuiSlider-thumb": {
-              width: 8,
-              height: 8,
-              transition: "0.3s cubic-bezier(.47,1.64,.41,.8)",
-              "&:before": { boxShadow: "0 2px 8px 0 rgba(0,0,0,0.3)" },
+              width: 12,
+              height: 12,
+              backgroundColor: "#667781",
               "&:hover, &.Mui-focusVisible": {
-                boxShadow: `0px 0px 0px 4px ${isMe ? "rgba(255,255,255,0.16)" : "rgba(99, 102, 241, 0.16)"}`,
+                boxShadow: "0px 0px 0px 6px rgba(102, 119, 129, 0.16)",
               },
-              "&.Mui-active": { width: 10, height: 10 },
             },
-            "& .MuiSlider-rail": { opacity: 0.28 },
+            "& .MuiSlider-rail": { opacity: 0.2 },
           }}
         />
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           <Typography
             variant="caption"
-            sx={{ fontSize: "0.65rem", opacity: 0.8, color: "inherit" }}
+            sx={{ fontSize: "0.7rem", color: "#667781" }}
           >
             {formatTime(currentTime)}
           </Typography>
           <Typography
             variant="caption"
-            sx={{ fontSize: "0.65rem", opacity: 0.8, color: "inherit" }}
+            sx={{ fontSize: "0.7rem", color: "#667781" }}
           >
             {formatTime(duration)}
           </Typography>
@@ -211,17 +209,16 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
           size="small"
           onClick={toggleMute}
           sx={{
-            color: isMe ? "white" : "#6366f1",
-            opacity: 0.8,
+            color: "#667781",
             p: 0.2,
           }}
         >
           {volume === 0 ? (
-            <VolumeOffIcon sx={{ fontSize: 12 }} />
+            <VolumeOffIcon sx={{ fontSize: 16 }} />
           ) : volume < 0.5 ? (
-            <VolumeDownIcon sx={{ fontSize: 12 }} />
+            <VolumeDownIcon sx={{ fontSize: 16 }} />
           ) : (
-            <VolumeUpIcon sx={{ fontSize: 12 }} />
+            <VolumeUpIcon sx={{ fontSize: 16 }} />
           )}
         </IconButton>
 
@@ -243,17 +240,18 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
             onChange={handleVolumeChange}
             sx={{
               width: { xs: 30, sm: 40 },
-              color: isMe ? "white" : "#6366f1",
+              color: "#667781",
               height: 2,
               mx: 0.2,
               "& .MuiSlider-thumb": {
-                width: 6,
-                height: 6,
+                width: 10,
+                height: 10,
+                backgroundColor: "#667781",
                 "&:hover, &.Mui-focusVisible": {
-                  boxShadow: `0px 0px 0px 3px ${isMe ? "rgba(255,255,255,0.16)" : "rgba(99, 102, 241, 0.16)"}`,
+                  boxShadow: "0px 0px 0px 4px rgba(102, 119, 129, 0.16)",
                 },
               },
-              "& .MuiSlider-rail": { opacity: 0.28 },
+              "& .MuiSlider-rail": { opacity: 0.2 },
             }}
           />
         </Box>
@@ -716,8 +714,7 @@ export default function MessageWindow() {
           p: 2,
           display: "flex",
           alignItems: "center",
-          bgcolor: "rgba(248, 250, 252, 0.8)", // Dimmer header
-          backdropFilter: "blur(10px)",
+          bgcolor: "#f0f2f5", // WhatsApp header color
           height: 80,
           zIndex: 2,
           borderBottom: "1px solid rgba(0,0,0,0.06)",
@@ -790,7 +787,7 @@ export default function MessageWindow() {
           flexGrow: 1,
           overflowY: "auto",
           p: 3,
-          bgcolor: "transparent", // Let the gradient shine through or keep white
+          bgcolor: "#efeae2", // WhatsApp beige
         }}
       >
         {loadingMore && (
@@ -807,7 +804,7 @@ export default function MessageWindow() {
               // Visibility Logic for deleted messages:
               // - Hide for sender always (user wants "blank screen")
               // - Hide for receiver if already read (user wants to show only if "not read")
-              const shouldHideDeleted = msg.deleted && (isMe || msg.read);
+              const shouldHideDeleted = false;
               if (shouldHideDeleted) return null;
 
               const dateLabel = getDateLabel(msg.createdAt);
@@ -939,41 +936,31 @@ export default function MessageWindow() {
                               msg.message?.startsWith("data:audio/")
                               ? { xs: "190px", sm: "220px" }
                               : "auto",
-                          // Gradient for me, slightly dimmer white/gray for them
-                          background: isMe
-                            ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
-                            : "#fff9f0",
-                          color: isMe ? "white" : "#1e293b",
-                          borderRadius: "20px", // Pill shape
-                          borderBottomRightRadius: isMe ? "4px" : "20px",
-                          borderBottomLeftRadius: isMe ? "20px" : "4px",
-                          boxShadow: isMe
-                            ? "0 4px 15px rgba(99, 102, 241, 0.3)"
-                            : "0 1px 3px rgba(0,0,0,0.05)", // Softer shadow
-                          border: isMe
-                            ? "none"
-                            : "1px solid rgba(255, 243, 224, 0.5)", // Subtle border for received
-                          overflow: "hidden",
+                          // WhatsApp bubble colors
+                          background: isMe ? "#d9fdd3" : "#fff",
+                          color: "#111b21",
+                          borderRadius: "8px",
+                          borderBottomRightRadius: isMe ? "0px" : "8px",
+                          borderBottomLeftRadius: isMe ? "8px" : "0px",
+                          boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)",
                           position: "relative",
                         }}
                       >
                         <Box sx={{ fontSize: "0.95rem", lineHeight: 1.5 }}>
                           {msg.deleted ? (
-                            !isMe && !msg.read ? (
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                  fontStyle: "italic",
-                                  opacity: 0.7,
-                                }}
-                              >
-                                <Typography variant="body2">
-                                  This message was deleted
-                                </Typography>
-                              </Box>
-                            ) : null
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                fontStyle: "italic",
+                                opacity: 0.7,
+                              }}
+                            >
+                              <Typography variant="body2">
+                                This message was deleted
+                              </Typography>
+                            </Box>
                           ) : (
                             <>
                               {msg.type === "image" ||
@@ -1165,8 +1152,8 @@ export default function MessageWindow() {
       {/* Input */}
       <Box
         sx={{
-          p: 3,
-          bgcolor: "transparent",
+          p: 2,
+          bgcolor: "#f0f2f5",
           position: "relative",
           zIndex: 2,
         }}
@@ -1176,12 +1163,11 @@ export default function MessageWindow() {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            bgcolor: "rgba(255,255,255,0.8)", // Slightly less opaque
-            backdropFilter: "blur(10px)",
+            bgcolor: "#fff",
             p: 1,
-            borderRadius: "24px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.05)", // Softer shadow
-            border: "1px solid rgba(255,255,255,0.4)",
+            borderRadius: "8px",
+            boxShadow: "none",
+            border: "1px solid rgba(0,0,0,0.05)",
           }}
         >
           <TextField

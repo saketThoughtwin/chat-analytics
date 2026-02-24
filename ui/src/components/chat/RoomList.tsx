@@ -198,8 +198,8 @@ export default function RoomList() {
       sx={{
         width: "100%",
         height: "100%",
-        borderRight: "1px solid #e0e0e0",
-        bgcolor: "background.paper",
+        borderRight: "1px solid rgba(0,0,0,0.1)",
+        bgcolor: "#fff",
         position: "relative",
       }}
     >
@@ -210,6 +210,7 @@ export default function RoomList() {
           alignItems: "center",
           justifyContent: "space-between",
           height: 80,
+          bgcolor: "#f0f2f5",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -551,13 +552,9 @@ export default function RoomList() {
                                   typing...
                                 </span>
                               ) : room.lastMessage?.deleted ? (
-                                room.lastMessage.sender === currentUser?.id || room.lastMessage.read ? (
-                                  ""
-                                ) : (
-                                  <span style={{ fontStyle: "italic", opacity: 0.7 }}>
-                                    This message was deleted
-                                  </span>
-                                )
+                                <span style={{ fontStyle: "italic", opacity: 0.7 }}>
+                                  This message was deleted
+                                </span>
                               ) : (room as any).lastMessagePreview ? (
                                 (room as any).lastMessagePreview
                               ) : room.lastMessage?.type === "audio" ? (
