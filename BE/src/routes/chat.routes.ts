@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 import ChatController from "controller/chat.controller";
 import { authMiddleware } from "@middlewares/auth.middleware";

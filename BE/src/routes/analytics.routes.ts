@@ -1,10 +1,8 @@
-
-
 import { Router } from "express";
 import AnalyticsController from "@analytics/analytics.controller";
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware } from '@middlewares/auth.middleware';
 import { asyncHandler } from "@middlewares/asyncHandlerMiddleware";
-import { RoutesConstants } from "../constants/route.constants";
+import { RoutesConstants } from "@constants/route.constants";
 
 const router = Router();
 

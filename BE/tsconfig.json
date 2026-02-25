@@ -25,7 +25,8 @@
       "@controllers/*": ["controllers/*"],
       "@services/*": ["services/*"],
       "@realtime/*":["realtime/*"],
-      "@analytics/*":["analytics/*"]
+      "@analytics/*":["analytics/*"],
+      "@constants/*":["constants/*"]
     }
   },
   "include": ["src/**/*.ts"],

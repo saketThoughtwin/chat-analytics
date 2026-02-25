@@ -117,16 +117,6 @@ export const initSocketServer = (server: http.Server) => {
       }
     });
 
-    // Handle message delivery acknowledgment
-    // socket.on("message_delivered", async ({ messageId }: { messageId: string }) => {
-    //   try {
-    //     await messageService.markAsDelivered(messageId);
-    //     io.emit("message_delivered", { messageId });
-    //   } catch (error) {
-    //     console.error("Error marking message as delivered:", error);
-    //   }
-    // });
-
     // Handle read receipts
     socket.on("messages_read", async ({ roomId, messageIds }: { roomId: string; messageIds: string[] }) => {
       try {
