@@ -7,13 +7,13 @@ import {
     Button,
     Box,
     Typography,
-    CircularProgress,
     IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import VideoCameraBackIcon from "@mui/icons-material/VideoCameraBack";
 import { useChatStore } from "../../store/chatStore";
+import Spinner from "../ui/Spinner";
 
 interface StoryUploadProps {
     open: boolean;
@@ -135,7 +135,7 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
                                 justifyContent: "center",
                             }}
                         >
-                            <CircularProgress />
+                            <Spinner size={32} className="text-indigo-600" />
                         </Box>
                     )}
                 </Box>

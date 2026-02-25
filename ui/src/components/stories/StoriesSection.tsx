@@ -10,7 +10,6 @@ import {
     Divider,
     IconButton,
     ListItemButton,
-    CircularProgress,
 } from "@mui/material";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -18,6 +17,7 @@ import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import StoryUpload from "./StoryUpload";
 import StoryViewer from "./StoryViewer";
+import Spinner from "../ui/Spinner";
 
 const SegmentedAvatar = ({ src, name, count, hasUnread = true }: { src?: string, name: string, count: number, hasUnread?: boolean }) => {
     if (count <= 1) {
@@ -90,7 +90,7 @@ export default function StoriesSection() {
     if (loadingStories && stories.length === 0) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                <CircularProgress size={24} />
+                <Spinner size={32} className="text-indigo-600" />
             </Box>
         );
     }

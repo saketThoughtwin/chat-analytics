@@ -24,7 +24,6 @@ import {
   Button,
   Snackbar,
   Alert,
-  CircularProgress,
   Fab,
   Tabs,
   Tab,
@@ -40,6 +39,7 @@ import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import CreateChatDialog from "./CreateChatDialog";
 import StoriesSection from "../stories/StoriesSection";
+import Spinner from "../ui/Spinner";
 
 // Utility function to get relative time
 const getRelativeTime = (dateString: string) => {
@@ -387,7 +387,7 @@ export default function RoomList() {
                   opacity: 0.8,
                 }}
               >
-                <CircularProgress size={28} />
+                <Spinner size={28} className="text-indigo-600" />
                 <Typography variant="body2" color="text.secondary">
                   Loading chats...
                 </Typography>

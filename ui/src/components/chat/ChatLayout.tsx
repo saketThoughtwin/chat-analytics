@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Box, Grid, Paper, CircularProgress } from '@mui/material';
+import { Box, Grid, Paper } from '@mui/material';
 import RoomList from './RoomList';
 import MessageWindow from './MessageWindow';
 import { useChatStore } from '../../store/chatStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'next/navigation';
+import Spinner from '../ui/Spinner';
 
 export default function ChatLayout() {
     const initSocketEvents = useChatStore((state) => state.initSocketEvents);
@@ -35,7 +36,7 @@ export default function ChatLayout() {
     if (!_hasHydrated) {
         return (
             <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-                <CircularProgress />
+                <Spinner size={40} className="text-indigo-600" />
             </Box>
         );
     }

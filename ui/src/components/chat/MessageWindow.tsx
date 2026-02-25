@@ -10,7 +10,6 @@ import {
   Avatar,
   List,
   ListItem,
-  CircularProgress,
   Backdrop,
   Popover,
   Menu,
@@ -48,6 +47,7 @@ import { useAuthStore } from "../../store/authStore";
 import { getSocket } from "../../lib/socket";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { Slider } from "@mui/material";
+import Spinner from "../ui/Spinner"; // Added Spinner import
 
 // Custom Audio Player Component for stable UI
 const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
@@ -704,7 +704,7 @@ export default function MessageWindow() {
             boxShadow: "none",
           }}
         >
-          <CircularProgress color="inherit" sx={{ opacity: 0.4 }} />
+          <Spinner size={32} className="opacity-40" />
           <Typography variant="body1">Loading messages...</Typography>
         </Box>
       </Backdrop>
@@ -792,7 +792,7 @@ export default function MessageWindow() {
       >
         {loadingMore && (
           <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <CircularProgress size={24} />
+            <Spinner size={24} className="text-indigo-600" />
           </Box>
         )}
         <List sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

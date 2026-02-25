@@ -12,7 +12,6 @@ import {
     Avatar,
     ListItemText,
     ListItemButton,
-    CircularProgress,
     Typography,
     Box,
     IconButton,
@@ -23,6 +22,7 @@ import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../lib/apiendpoint';
 import { JSON_HEADERS } from '../../lib/headers';
 import { useChatStore } from '../../store/chatStore';
+import Spinner from '../ui/Spinner';
 
 interface User {
     _id: string;
@@ -108,7 +108,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
                 />
                 {loading ? (
                     <Box display="flex" justifyContent="center" p={2}>
-                        <CircularProgress size={24} />
+                        <Spinner size={24} className="text-indigo-600" />
                     </Box>
                 ) : (
                     <List sx={{ maxHeight: 300, overflow: 'auto' }}>
@@ -137,7 +137,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
                 open={creating}
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <CircularProgress color="inherit" />
+                    <Spinner size={32} className="opacity-80 text-white" />
 
                 </Box>
             </Backdrop>
