@@ -108,7 +108,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
                 />
                 {loading ? (
                     <Box display="flex" justifyContent="center" p={2}>
-                        <Spinner size={24} className="text-indigo-600" />
+                        <Spinner size={24} color="#4f46e5" />
                     </Box>
                 ) : (
                     <List sx={{ maxHeight: 300, overflow: 'auto' }}>
@@ -137,7 +137,7 @@ export default function CreateChatDialog({ open, onClose }: CreateChatDialogProp
                 open={creating}
             >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <Spinner size={32} className="opacity-80 text-white" />
+                    <Spinner size={32} color="#ffffff" opacity={0.8} />
 
                 </Box>
             </Backdrop>

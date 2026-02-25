@@ -90,7 +90,7 @@ export default function StoriesSection() {
     if (loadingStories && stories.length === 0) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                <Spinner size={32} className="text-indigo-600" />
+                <Spinner size={32} color="#4f46e5" />
             </Box>
         );
     }

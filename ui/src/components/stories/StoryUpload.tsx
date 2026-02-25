@@ -135,7 +135,7 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
                                 justifyContent: "center",
                             }}
                         >
-                            <Spinner size={32} className="text-indigo-600" />
+                            <Spinner size={32} color="#4f46e5" />
                         </Box>
                     )}
                 </Box>

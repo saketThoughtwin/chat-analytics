@@ -704,7 +704,7 @@ export default function MessageWindow() {
             boxShadow: "none",
           }}
         >
-          <Spinner size={32} className="opacity-40" />
+          <Spinner size={32} opacity={0.4} />
           <Typography variant="body1">Loading messages...</Typography>
         </Box>
       </Backdrop>
@@ -792,7 +792,7 @@ export default function MessageWindow() {
       >
         {loadingMore && (
           <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <Spinner size={24} className="text-indigo-600" />
+            <Spinner size={24} color="#4f46e5" />
           </Box>
         )}
         <List sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

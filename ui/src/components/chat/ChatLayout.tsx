@@ -36,7 +36,7 @@ export default function ChatLayout() {
     if (!_hasHydrated) {
         return (
             <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-                <Spinner size={40} className="text-indigo-600" />
+                <Spinner size={40} color="#4f46e5" />
             </Box>
         );
     }

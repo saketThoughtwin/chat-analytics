@@ -387,7 +387,7 @@ export default function RoomList() {
                   opacity: 0.8,
                 }}
               >
-                <Spinner size={28} className="text-indigo-600" />
+                <Spinner size={28} color="#4f46e5" />
                 <Typography variant="body2" color="text.secondary">
                   Loading chats...
                 </Typography>
