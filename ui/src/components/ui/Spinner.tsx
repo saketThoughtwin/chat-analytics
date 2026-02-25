@@ -1,4 +1,5 @@
-import React from 'react';
+import React from "react";
+import CircularProgress from "@mui/material/CircularProgress";
 
 interface SpinnerProps {
     size?: number | string;
@@ -16,28 +17,14 @@ export default function Spinner({
     style,
 }: SpinnerProps) {
     return (
-        <svg
+        <CircularProgress
             className={className}
-            style={{
-                width: size,
-                height: size,
+            size={size}
+            sx={{
                 color,
                 opacity,
-                animation: 'spinner-rotate 0.8s linear infinite',
-                ...style,
             }}
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-        >
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity={0.25} strokeWidth="4"></circle>
-            <path fill="currentColor" fillOpacity={0.75} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-            <style>{`
-                @keyframes spinner-rotate {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
-        </svg>
+            style={style}
+        />
     );
 }
