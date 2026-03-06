@@ -155,6 +155,9 @@ export default class ChatController {
       receiver,
     });
 
+    // Emit to room (broadcast message)
+    io.to(roomId).emit("receive_message", newMsg);
+
     // Check online participants and mark as delivered
     const onlineParticipants: string[] = [];
     for (const participant of room.participants) {
@@ -217,6 +220,9 @@ export default class ChatController {
       mediaUrl: (file as any).path, // Cloudinary URL is stored in 'path' by multer-storage-cloudinary
       receiver,
     });
+
+    // Emit to room (broadcast message)
+    io.to(roomId).emit("receive_message", newMsg);
 
     console.log(`Media message sent: ${type}, URL: ${(file as any).path}`);
 
