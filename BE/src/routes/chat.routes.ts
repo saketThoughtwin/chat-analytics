@@ -10,9 +10,12 @@ const router = Router();
 
 // Room management
 router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOMS}`, authMiddleware, asyncHandler(ChatController.createOrGetRoom));
+router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.GROUP}`, authMiddleware, asyncHandler(ChatController.createGroupRoom));
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOMS}`, authMiddleware, asyncHandler(ChatController.getUserRooms));
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.getRoomById));
+router.patch(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.updateRoom));
 router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.deleteRoom));
+
 
 // Messaging
 router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.MESSAGES}`, authMiddleware, rateLimitMiddleware, asyncHandler(ChatController.sendMessage));

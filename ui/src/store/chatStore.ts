@@ -25,10 +25,14 @@ interface Message {
 
 interface Room {
   _id: string;
+  type?: 'direct' | 'group';
+  name?: string;
+  groupAdmin?: string;
   participants: any[];
   lastMessage?: Message;
   unreadCount?: number;
 }
+
 
 export interface Story {
   _id: string;
@@ -66,7 +70,10 @@ interface ChatState {
   activeRoomFirstUnreadId: string | null;
   stories: GroupedStory[];
   loadingStories: boolean;
+  roomActiveCounts: Record<string, number>; // roomId -> count
+  totalOnlineCount: number;
   error: string | null;
+
 
   fetchRooms: () => Promise<void>;
   setActiveRoom: (roomId: string | null) => void;
@@ -81,6 +88,10 @@ interface ChatState {
   deleteMessage: (messageId: string) => Promise<void>;
   toggleStarMessage: (messageId: string, starred: boolean) => Promise<void>;
   fetchAllStarredMessages: () => Promise<Message[]>;
+
+  createGroupRoom: (participants: string[], name: string) => Promise<void>;
+  updateRoom: (roomId: string, data: Partial<Room>) => Promise<void>;
+
 
   // Stories
   fetchStories: () => Promise<void>;
@@ -100,6 +111,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeRoomId: null,
   messages: [],
   onlineUsers: [],
+  totalOnlineCount: 0,
   typingUsers: {},
   messagesCache: {},
   loading: false,
@@ -110,7 +122,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeRoomFirstUnreadId: null,
   stories: [],
   loadingStories: false,
+  roomActiveCounts: {},
   error: null,
+
 
   fetchRooms: async () => {
     // Only show loading if we don't have any rooms yet (stale-while-revalidate)
@@ -506,6 +520,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return [];
     }
   },
+  createGroupRoom: async (participants, name) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.CHAT.GROUP, { participants, name }, { headers: JSON_HEADERS });
+      const newRoom = response.data;
+      await get().fetchRooms();
+      get().setActiveRoom(newRoom._id);
+    } catch (error) {
+      console.error("Failed to create group room", error);
+    }
+  },
+  updateRoom: async (roomId, data) => {
+    try {
+      const response = await api.patch(API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(':roomId', roomId), data, { headers: JSON_HEADERS });
+      const updatedRoom = response.data;
+      set((state) => ({
+        rooms: state.rooms.map((r) => r._id === roomId ? { ...r, ...updatedRoom } : r)
+      }));
+    } catch (error) {
+      console.error("Failed to update room", error);
+    }
+  },
+
 
   initSocketEvents: () => {
     const socket = getSocket();
@@ -824,7 +860,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     });
 
+    socket.on("room_active_count", ({ roomId, count }) => {
+      set((state) => ({
+        roomActiveCounts: {
+          ...state.roomActiveCounts,
+          [roomId]: count
+        }
+      }));
+    });
+
+    socket.on("total_online_count", ({ count }) => {
+      set({ totalOnlineCount: count });
+    });
   },
+
+
   reset: () => {
     set({
       rooms: [],
@@ -842,8 +892,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messagesCache: {},
       stories: [],
       loadingStories: false,
+      roomActiveCounts: {},
+      totalOnlineCount: 0,
     });
   },
+
 
   fetchStories: async () => {
     set({ loadingStories: true });
@@ -934,3 +987,4 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 }));
+

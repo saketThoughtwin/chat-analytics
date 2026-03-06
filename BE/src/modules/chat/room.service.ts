@@ -101,18 +101,28 @@ class RoomService {
     /**
      * Create a group room
      */
-    async createGroupRoom(participants: string[]): Promise<IRoom> {
+    async createGroupRoom(participants: string[], name: string, creatorId: string): Promise<IRoom> {
         const roomId = RoomIdGenerator.generateGroupRoomId(participants);
 
         const room = await roomRepository.create({
             _id: roomId,
             type: 'group',
+            name,
+            groupAdmin: creatorId,
             participants,
             unreadCounts: new Map()
         });
 
         return room;
     }
+
+    /**
+     * Update a group room (name, participants, etc.)
+     */
+    async updateRoom(roomId: string, data: Partial<IRoom>): Promise<IRoom | null> {
+        return roomRepository.updateById(roomId, data);
+    }
+
 
     /**
      * Delete a room

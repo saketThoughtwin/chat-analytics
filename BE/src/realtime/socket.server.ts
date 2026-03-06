@@ -27,6 +27,12 @@ export const initSocketServer = (server: http.Server) => {
   io.on("connection", async (socket: Socket) => {
     const userId = socket.data.userId;
 
+    // Broadcast user online status
+    const broadcastOnlineCount = async () => {
+      const count = await redis.scard("online_users");
+      io.emit("total_online_count", { count });
+    };
+
     if (userId) {
       await redis.set(`last_seen:${userId}`, "online");
       await redis.sadd("online_users", userId);
@@ -39,6 +45,7 @@ export const initSocketServer = (server: http.Server) => {
 
       // Broadcast user online status
       io.emit("user_online", { userId });
+      broadcastOnlineCount();
 
       // Send list of currently online users to the new connection
       const onlineUsers = await redis.smembers("online_users");
@@ -60,7 +67,7 @@ export const initSocketServer = (server: http.Server) => {
 
       // Send current active count
       const activeCount = await redis.scard(`chat:active:${roomId}`);
-      socket.emit("room_active_count", { roomId, count: activeCount });
+      io.to(roomId).emit("room_active_count", { roomId, count: activeCount });
     });
 
     socket.on("leave_room", async (roomId: string) => {
@@ -137,6 +144,8 @@ export const initSocketServer = (server: http.Server) => {
         if (rooms) {
           for (const roomId of rooms) {
             await redis.srem(`chat:active:${roomId}`, userId);
+            const activeCount = await redis.scard(`chat:active:${roomId}`);
+            io.to(roomId).emit("room_active_count", { roomId, count: activeCount });
             socket.to(roomId).emit("user_left_room", { userId, roomId });
           }
           userRooms.delete(userId);
@@ -144,8 +153,10 @@ export const initSocketServer = (server: http.Server) => {
 
         // Broadcast user offline status
         io.emit("user_offline", { userId });
+        broadcastOnlineCount();
       }
     });
+
   });
 };
 

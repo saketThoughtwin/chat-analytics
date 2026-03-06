@@ -3,6 +3,8 @@ import mongoose, { Schema } from 'mongoose';
 export interface IRoom {
     _id: string; // Room ID (deterministic for direct, unique for group)
     type: 'direct' | 'group';
+    name?: string; // Group name
+    groupAdmin?: string; // User ID who created the group
     participants: string[]; // Array of user IDs
     lastMessage?: {
         messageId: string;
@@ -25,6 +27,8 @@ const RoomSchema = new Schema<IRoom>(
             required: true,
             index: true
         },
+        name: { type: String },
+        groupAdmin: { type: String, ref: 'User' },
         participants: {
             type: [String],
             ref: 'User',

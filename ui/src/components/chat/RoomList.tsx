@@ -38,7 +38,9 @@ import { useRouter } from "next/navigation";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
 import CreateChatDialog from "./CreateChatDialog";
+import CreateGroupDialog from "./CreateGroupDialog";
 import StoriesSection from "../stories/StoriesSection";
+
 import Spinner from "../ui/Spinner";
 
 // Utility function to get relative time
@@ -78,7 +80,9 @@ export default function RoomList() {
     fetchAllStarredMessages,
     stories,
     fetchStories,
+    totalOnlineCount,
   } = useChatStore();
+
   const { user: currentUser, logout } = useAuthStore();
 
   // Calculate if there are any unread stories from others
@@ -97,9 +101,12 @@ export default function RoomList() {
   }, [stories, currentUser]);
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false);
+  const [fabMenuAnchor, setFabMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<{
     [key: string]: HTMLElement | null;
   }>({});
+
 
   // Deletion Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -193,6 +200,25 @@ export default function RoomList() {
     setRoomToDelete(null);
   };
 
+  const handleFabClick = (event: React.MouseEvent<HTMLElement>) => {
+    setFabMenuAnchor(event.currentTarget);
+  };
+
+  const handleFabMenuClose = () => {
+    setFabMenuAnchor(null);
+  };
+
+  const handleNewChat = () => {
+    setCreateDialogOpen(true);
+    handleFabMenuClose();
+  };
+
+  const handleNewGroup = () => {
+    setCreateGroupDialogOpen(true);
+    handleFabMenuClose();
+  };
+
+
   return (
     <Box
       sx={{
@@ -226,19 +252,26 @@ export default function RoomList() {
           >
             C
           </Avatar>
-          <Typography
-            fontWeight="800"
-            sx={{
-              background: "linear-gradient(45deg, #1e1b4b, #4338ca)",
-              backgroundClip: "text",
-              textFillColor: "transparent",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              letterSpacing: "-0.5px",
-            }}
-          >
-            Chat-Analytics
-          </Typography>
+          <Box>
+            <Typography
+              fontWeight="800"
+              sx={{
+                background: "linear-gradient(45deg, #1e1b4b, #4338ca)",
+                backgroundClip: "text",
+                textFillColor: "transparent",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.5px",
+                lineHeight: 1
+              }}
+            >
+              Chat-Analytics
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
+              {totalOnlineCount} online
+            </Typography>
+          </Box>
+
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Analytics">
@@ -406,8 +439,10 @@ export default function RoomList() {
               </Box>
             ) : (
               rooms.map((room) => {
-                const otherUser = getOtherParticipant(room);
-                const isOnline = onlineUsers.includes(otherUser?._id);
+                const isGroup = room.type === 'group';
+                const otherUser = isGroup ? null : getOtherParticipant(room);
+                const isOnline = !isGroup && onlineUsers.includes(otherUser?._id);
+
 
                 return (
                   <ListItem
@@ -476,11 +511,13 @@ export default function RoomList() {
                       <ListItemAvatar>
                         <Box sx={{ position: "relative" }}>
                           <Avatar
-                            alt={otherUser?.name}
-                            src={otherUser?.avatar}
+                            alt={isGroup ? room.name : otherUser?.name}
+                            src={isGroup ? undefined : otherUser?.avatar}
                             sx={{
                               width: 52,
                               height: 52,
+                              bgcolor: isGroup ? '#6366f1' : undefined,
+
                               border:
                                 activeRoomId === room._id
                                   ? "2px solid #6366f1"
@@ -488,8 +525,9 @@ export default function RoomList() {
                               transition: "border 0.2s",
                             }}
                           >
-                            {otherUser?.name?.charAt(0)}
+                            {(isGroup ? room.name : otherUser?.name)?.charAt(0)}
                           </Avatar>
+
                           {isOnline && (
                             <Box
                               sx={{
@@ -516,7 +554,7 @@ export default function RoomList() {
                               noWrap
                               sx={{ flex: 1, mr: 1 }}
                             >
-                              {otherUser?.name || "Unknown"}
+                              {isGroup ? room.name : otherUser?.name || "Unknown"}
                             </Typography>
                             {(room.lastMessage?.createdAt || (room.lastMessage as any)?.timestamp) && (
                               <Typography
@@ -715,17 +753,12 @@ export default function RoomList() {
         </DialogActions>
       </Dialog>
 
-      <CreateChatDialog
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-      />
-
       {/* Floating Action Button for New Chat */}
       {currentTab === 0 && (
         <Fab
           color="primary"
           aria-label="add"
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={handleFabClick}
           sx={{
             position: "absolute",
             bottom: 24,
@@ -767,6 +800,61 @@ export default function RoomList() {
           </Box>
         </Fab>
       )}
+
+      <Menu
+        anchorEl={fabMenuAnchor}
+        open={Boolean(fabMenuAnchor)}
+        onClose={handleFabMenuClose}
+        anchorOrigin={{
+
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            borderRadius: 2,
+            minWidth: 160,
+            mb: 1,
+            overflow: 'visible',
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              bottom: -10,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={handleNewChat}>
+          <ChatIcon fontSize="small" sx={{ mr: 1.5, color: "#6366f1" }} />
+          <Typography>New Chat</Typography>
+        </MenuItem>
+        <MenuItem onClick={handleNewGroup}>
+          <AddIcon fontSize="small" sx={{ mr: 1.5, color: "#6366f1" }} />
+          <Typography>New Group</Typography>
+        </MenuItem>
+      </Menu>
+
+      <CreateChatDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+
+      <CreateGroupDialog
+        open={createGroupDialogOpen}
+        onClose={() => setCreateGroupDialogOpen(false)}
+      />
     </Box>
   );
 }

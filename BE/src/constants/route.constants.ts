@@ -19,6 +19,7 @@ export const RoutesConstants = {
     CHAT: {
         DEFAULT: '/chat',
         ROOMS: '/rooms',
+        GROUP: '/rooms/group',
         ROOM_BY_ID: '/rooms/:roomId',
         ROOM_BY_ID_UPLOAD: '/rooms/:roomId/upload',
         MESSAGES: '/rooms/:roomId/messages',

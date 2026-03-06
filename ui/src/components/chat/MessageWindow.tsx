@@ -278,7 +278,9 @@ export default function MessageWindow() {
     activeRoomUnreadCount,
     deleteMessage,
     toggleStarMessage,
+    roomActiveCounts,
   } = useChatStore();
+
   const currentUser = useAuthStore((state) => state.user);
   const router = useRouter();
   const [input, setInput] = useState("");
@@ -537,10 +539,7 @@ export default function MessageWindow() {
     document.body.removeChild(link);
   };
 
-  const activeRoom = rooms.find((r) => r._id === activeRoomId);
-  const otherUser = activeRoom?.participants.find(
-    (p: any) => (p._id || p) !== currentUser?.id,
-  );
+
 
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
@@ -675,9 +674,36 @@ export default function MessageWindow() {
     );
   }
 
+  const activeRoom = rooms.find((r) => r._id === activeRoomId);
   const typingInRoom = typingUsers[activeRoomId] || [];
-  const isOtherTyping = typingInRoom.includes(otherUser?._id);
-  const isOnline = otherUser?._id && onlineUsers.includes(otherUser._id);
+
+  const roomsTyping = typingInRoom.filter(id => id !== currentUser?.id);
+  const isGroup = activeRoom?.type === 'group';
+
+  // Get other user for direct chat, or handle group case
+  const otherUser = isGroup ? null : activeRoom?.participants.find(
+    (p: any) => (p._id || p) !== currentUser?.id,
+  );
+
+  const isOnline = !isGroup && otherUser?._id && onlineUsers.includes(otherUser._id);
+  const activeCount = roomActiveCounts[activeRoomId] || 0;
+
+  // Formatting typing text
+  let typingText = "";
+  if (roomsTyping.length > 0) {
+    if (isGroup) {
+      const typingUserNames = roomsTyping.map(id => {
+        const p = activeRoom?.participants.find((p: any) => (p._id || p) === id);
+        return typeof p === 'object' ? p.name : 'Someone';
+      });
+      if (typingUserNames.length === 1) typingText = `${typingUserNames[0]} is typing...`;
+      else if (typingUserNames.length === 2) typingText = `${typingUserNames[0]} and ${typingUserNames[1]} are typing...`;
+      else typingText = "Multiple people are typing...";
+    } else {
+      typingText = "typing...";
+    }
+  }
+
 
   return (
     <Box
@@ -732,12 +758,13 @@ export default function MessageWindow() {
         </IconButton>
         <Box sx={{ position: "relative", mr: 2 }}>
           <Avatar
-            alt={otherUser?.name}
-            src={otherUser?.avatar}
-            sx={{ width: 44, height: 44 }}
+            alt={isGroup ? activeRoom?.name : otherUser?.name}
+            src={isGroup ? undefined : otherUser?.avatar}
+            sx={{ width: 44, height: 44, bgcolor: isGroup ? '#6366f1' : undefined }}
           >
-            {otherUser?.name?.charAt(0)}
+            {(isGroup ? activeRoom?.name : otherUser?.name)?.charAt(0)}
           </Avatar>
+
           {isOnline && (
             <Box
               sx={{
@@ -755,14 +782,19 @@ export default function MessageWindow() {
         </Box>
         <Box>
           <Typography variant="h6" fontWeight="700" lineHeight={1.2}>
-            {otherUser?.name}
+            {isGroup ? activeRoom?.name : otherUser?.name}
           </Typography>
-          {isOtherTyping ? (
+
+          {typingText ? (
             <Typography
               variant="caption"
               sx={{ color: "#6366f1", fontWeight: "600" }}
             >
-              typing...
+              {typingText}
+            </Typography>
+          ) : isGroup ? (
+            <Typography variant="caption" color="text.secondary">
+              {activeRoom?.participants.length} members{activeCount > 0 ? `, ${activeCount} online` : ""}
             </Typography>
           ) : isOnline ? (
             <Typography
@@ -777,6 +809,7 @@ export default function MessageWindow() {
             </Typography>
           )}
         </Box>
+
       </Box>
 
       {/* Messages */}

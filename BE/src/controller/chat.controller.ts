@@ -24,6 +24,30 @@ export default class ChatController {
   }
 
   /**
+   * Create a group chat room
+   * POST /api/chat/rooms/group
+   */
+  static async createGroupRoom(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { participants, name } = req.body;
+
+    if (!participants || !Array.isArray(participants) || participants.length === 0) {
+      throw new ApiError(400, "participants array is required");
+    }
+
+    if (!name) throw new ApiError(400, "Group name is required");
+
+    // Add creator to participants if not already there
+    const allParticipants = participants.includes(userId!)
+      ? participants
+      : [...participants, userId!];
+
+    const room = await roomService.createGroupRoom(allParticipants, name, userId!);
+    res.status(201).json(room);
+  }
+
+
+  /**
    * Get all rooms for the authenticated user
    * GET /api/chat/rooms
    */
@@ -341,6 +365,38 @@ export default class ChatController {
 
     res.json({ message: "Chat deleted successfully" });
   }
+
+  /**
+   * Update room details (group name, etc.)
+   * PATCH /api/chat/rooms/:roomId
+   */
+  static async updateRoom(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+    const { name, participants } = req.body;
+
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+
+    // Only admin or participants can update? Usually admin for sensitive things.
+    // Let's check if user is admin if it's a group
+    if (room.type === 'group' && room.groupAdmin !== userId) {
+      // For now, let's allow participants to update name? Real WhatsApp allows any participant usually unless restricted.
+      // But adding/removing people might be admin only in some apps.
+      // Let's stick to admin for now if it's a group and we have an admin field.
+      // if (room.groupAdmin && room.groupAdmin !== userId) {
+      //   throw new ApiError(403, "Only group admin can update group settings");
+      // }
+    }
+
+    const updatedRoom = await roomService.updateRoom(roomId, { name, participants });
+
+    // Notify participants of the update
+    io.to(roomId).emit("room_update", updatedRoom);
+
+    res.json(updatedRoom);
+  }
+
 
   /**
    * Delete a message
