@@ -697,32 +697,65 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     });
 
-    socket.on("message_delivered", ({ messageId, roomId }) => {
-      set((state) => ({
-        messages: state.messages.map((m) =>
-          m._id === messageId ? { ...m, delivered: true } : m,
-        ),
-        rooms: state.rooms.map((r) =>
-          r._id === roomId && r.lastMessage?._id === messageId
-            ? { ...r, lastMessage: { ...r.lastMessage!, delivered: true } }
-            : r,
-        ),
-      }));
+    socket.on("message_delivered", ({ messageId, roomId, userId, at }) => {
+      console.log("Socket: message_delivered", { messageId, roomId, userId, at });
+      set((state) => {
+        const updateMsg = (m: Message) => {
+          if (m._id !== messageId) return m;
+          const deliveredTo = m.deliveredTo || [];
+          if (userId && !deliveredTo.some(d => d.userId === userId)) {
+            return {
+              ...m,
+              delivered: true,
+              deliveredTo: [...deliveredTo, { userId, at: at || new Date().toISOString() }]
+            };
+          }
+          return { ...m, delivered: true };
+        };
+
+        return {
+          messages: state.messages.map(updateMsg),
+          rooms: state.rooms.map((r) =>
+            r._id === roomId && r.lastMessage?._id === messageId
+              ? { ...r, lastMessage: updateMsg(r.lastMessage!) }
+              : r,
+          ),
+          messagesCache: {
+            ...state.messagesCache,
+            [roomId]: (state.messagesCache[roomId] || []).map(updateMsg)
+          }
+        };
+      });
     });
 
-    socket.on("messages_read", ({ messageIds, readBy, roomId }) => {
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          messageIds.includes(msg._id) ? { ...msg, read: true } : msg,
-        ),
-        rooms: state.rooms.map((r) =>
-          r._id === roomId &&
-            r.lastMessage?._id &&
-            messageIds.includes(r.lastMessage._id)
-            ? { ...r, lastMessage: { ...r.lastMessage!, read: true } }
-            : r,
-        ),
-      }));
+    socket.on("messages_read", ({ messageIds, readBy, roomId, userId, at }) => {
+      console.log("Socket: messages_read", { messageIds, roomId, userId });
+      set((state) => {
+        const updateMsg = (msg: Message) => {
+          if (!messageIds.includes(msg._id)) return msg;
+          const currentReadBy = msg.readBy || [];
+          let updatedReadBy = currentReadBy;
+          if (userId && !currentReadBy.some(r => r.userId === userId)) {
+            updatedReadBy = [...currentReadBy, { userId, at: at || new Date().toISOString() }];
+          }
+          return { ...msg, read: true, readBy: updatedReadBy };
+        };
+
+        return {
+          messages: state.messages.map(updateMsg),
+          rooms: state.rooms.map((r) =>
+            r._id === roomId &&
+              r.lastMessage?._id &&
+              messageIds.includes(r.lastMessage._id)
+              ? { ...r, lastMessage: updateMsg(r.lastMessage!) }
+              : r,
+          ),
+          messagesCache: {
+            ...state.messagesCache,
+            [roomId]: (state.messagesCache[roomId] || []).map(updateMsg)
+          }
+        };
+      });
     });
 
     socket.on("room_read", ({ roomId, readBy }) => {

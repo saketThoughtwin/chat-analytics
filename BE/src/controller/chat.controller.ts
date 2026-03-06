@@ -158,6 +158,11 @@ export default class ChatController {
     // Emit to room (broadcast message)
     io.to(roomId).emit("receive_message", newMsg);
 
+    // Also emit to receiver specifically for reliability in direct chats
+    if (receiver) {
+      io.to(receiver).emit("receive_message", newMsg);
+    }
+
     // Check online participants and mark as delivered
     const onlineParticipants: string[] = [];
     for (const participant of room.participants) {
@@ -173,11 +178,15 @@ export default class ChatController {
     if (onlineParticipants.length > 0) {
       for (const pId of onlineParticipants) {
         await messageService.markAsDelivered([newMsg._id.toString()], pId);
+        // Inform sender (and others) that this specific user delivered the message
+        io.to(roomId).emit("message_delivered", {
+          messageId: newMsg._id,
+          roomId,
+          userId: pId,
+          at: new Date()
+        });
       }
-      io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
     }
-
-
 
     res.status(201).json(newMsg);
   }
@@ -224,6 +233,14 @@ export default class ChatController {
     // Emit to room (broadcast message)
     io.to(roomId).emit("receive_message", newMsg);
 
+    // Also emit to individual participants for reliability
+    for (const participant of room.participants) {
+      const pId = (participant as any)._id ? (participant as any)._id.toString() : participant.toString();
+      if (pId !== userId) {
+        io.to(pId).emit("receive_message", newMsg);
+      }
+    }
+
     console.log(`Media message sent: ${type}, URL: ${(file as any).path}`);
 
     // Check online participants and mark as delivered
@@ -241,11 +258,15 @@ export default class ChatController {
     if (onlineParticipants.length > 0) {
       for (const pId of onlineParticipants) {
         await messageService.markAsDelivered([newMsg._id.toString()], pId);
+        // Inform sender (and others) that this specific user delivered the message
+        io.to(roomId).emit("message_delivered", {
+          messageId: newMsg._id,
+          roomId,
+          userId: pId,
+          at: new Date()
+        });
       }
-      io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
     }
-
-
 
     res.status(201).json(newMsg);
   }
@@ -300,8 +321,15 @@ export default class ChatController {
 
     // Emit read receipt to room
     if (roomId) {
-      io.to(roomId).emit("messages_read", { messageIds, readBy: userId, roomId });
-    } else {
+      io.to(roomId).emit("messages_read", {
+        messageIds,
+        readBy: userId,
+        userId: userId, // Keep both for compatibility
+        roomId,
+        at: new Date()
+      });
+    }
+    else {
       // Fallback if roomId is missing
       io.emit("messages_read", { messageIds, readBy: userId });
     }
