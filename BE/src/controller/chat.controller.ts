@@ -3,7 +3,9 @@ import { AuthRequest } from "@middlewares/auth.middleware";
 import { io } from "@realtime/socket.server";
 import roomService from "@modules/chat/room.service";
 import messageService from "@modules/chat/message.service";
+import messageRepository from "@modules/chat/message.repository";
 import { ApiError } from "@utils/ApiError";
+
 
 export default class ChatController {
   /**
@@ -378,16 +380,10 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    // Only admin or participants can update? Usually admin for sensitive things.
-    // Let's check if user is admin if it's a group
-    if (room.type === 'group' && room.groupAdmin !== userId) {
-      // For now, let's allow participants to update name? Real WhatsApp allows any participant usually unless restricted.
-      // But adding/removing people might be admin only in some apps.
-      // Let's stick to admin for now if it's a group and we have an admin field.
-      // if (room.groupAdmin && room.groupAdmin !== userId) {
-      //   throw new ApiError(403, "Only group admin can update group settings");
-      // }
-    }
+    // Only allow participants to update the room
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    if (!isParticipant) throw new ApiError(403, "Forbidden");
+
 
     const updatedRoom = await roomService.updateRoom(roomId, { name, participants });
 
@@ -395,6 +391,39 @@ export default class ChatController {
     io.to(roomId).emit("room_update", updatedRoom);
 
     res.json(updatedRoom);
+  }
+
+  static async leaveGroup(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+    if (room.type !== 'group') throw new ApiError(400, "Not a group chat");
+
+    const user = room.participants.find((p: any) => (p._id || p).toString() === userId);
+    if (!user) throw new ApiError(403, "Not a member of this group");
+
+
+    const updatedRoom = await roomService.leaveGroup(roomId, userId!);
+
+    // Create system message
+    const systemMsg = await messageRepository.create({
+      sender: null,
+      roomId,
+      message: `${(user as any).name || 'A user'} left the group`,
+      type: 'system',
+      read: true,
+      deleted: false
+    });
+
+    if (updatedRoom) {
+      // Notify remaining participants
+      io.to(roomId).emit("receive_message", systemMsg);
+      io.to(roomId).emit("room_update", updatedRoom);
+    }
+
+    res.status(200).json({ status: "success", message: "Left group successfully" });
   }
 
 

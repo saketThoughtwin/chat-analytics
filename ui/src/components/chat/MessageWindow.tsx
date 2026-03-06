@@ -261,24 +261,29 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
 };
 
 export default function MessageWindow() {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [headerAnchorEl, setHeaderAnchorEl] = useState<null | HTMLElement>(null);
+
   const {
     activeRoomId,
+    setActiveRoom,
     messages,
     sendMessage,
     rooms,
-    typingUsers,
-    setActiveRoom,
     onlineUsers,
-    loading,
-    loadingMore,
-    hasMore,
     loadMoreMessages,
-    sendMedia,
+    hasMore,
+    loadingMore,
+    markAsRead,
+    typingUsers,
+    loading,
+    roomActiveCounts,
+    toggleStarMessage,
+    leaveRoom,
     activeRoomFirstUnreadId,
     activeRoomUnreadCount,
     deleteMessage,
-    toggleStarMessage,
-    roomActiveCounts,
+    sendMedia,
   } = useChatStore();
 
   const currentUser = useAuthStore((state) => state.user);
@@ -810,7 +815,33 @@ export default function MessageWindow() {
           )}
         </Box>
 
+
+        <Box sx={{ ml: 'auto' }}>
+          {isGroup && (
+            <>
+              <IconButton onClick={(e) => setHeaderAnchorEl(e.currentTarget)}>
+                <MoreVertIcon />
+              </IconButton>
+              <Menu
+                anchorEl={headerAnchorEl}
+                open={Boolean(headerAnchorEl)}
+                onClose={() => setHeaderAnchorEl(null)}
+              >
+                <MenuItem onClick={async () => {
+                  if (activeRoomId) {
+                    await leaveRoom(activeRoomId);
+                    setHeaderAnchorEl(null);
+                    router.push('/');
+                  }
+                }} sx={{ color: 'error.main' }}>
+                  Leave Group
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Box>
       </Box>
+
 
       {/* Messages */}
       <Box
@@ -844,8 +875,27 @@ export default function MessageWindow() {
               const showDateSeparator = dateLabel !== lastShownDate;
               lastShownDate = dateLabel;
 
+              if (msg.type === 'system') {
+                return (
+                  <Box key={msg._id} sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+                    <Paper sx={{
+                      px: 2,
+                      py: 0.5,
+                      bgcolor: 'rgba(0,0,0,0.05)',
+                      borderRadius: 2,
+                      boxShadow: 'none'
+                    }}>
+                      <Typography variant="caption" color="textSecondary">
+                        {msg.message}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                );
+              }
+
               return (
                 <React.Fragment key={msg._id}>
+
                   {showDateSeparator && (
                     <Box
                       sx={{ display: "flex", justifyContent: "center", my: 2 }}

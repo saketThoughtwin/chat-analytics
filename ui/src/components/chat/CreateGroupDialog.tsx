@@ -85,7 +85,11 @@ export default function CreateGroupDialog({ open, onClose }: CreateGroupDialogPr
         );
     };
 
-    const handleNext = () => setStep(2);
+    const handleNext = () => {
+        if (selectedUsers.length < 2) return;
+        setStep(2);
+    };
+
     const handleBack = () => setStep(1);
 
     const handleCreateGroup = async () => {
@@ -126,11 +130,17 @@ export default function CreateGroupDialog({ open, onClose }: CreateGroupDialogPr
                             {step === 1 ? 'Add Group Members' : 'New Group'}
                         </Typography>
                     </Box>
-                    <IconButton onClick={handleClose} size="small">
-                        <CloseIcon />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <Typography variant="caption" color="textSecondary">
+                            {selectedUsers.length} / 2 minimum
+                        </Typography>
+                        <IconButton onClick={handleClose} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
                 </Box>
             </DialogTitle>
+
             <DialogContent>
                 {step === 1 ? (
                     <>
@@ -202,13 +212,14 @@ export default function CreateGroupDialog({ open, onClose }: CreateGroupDialogPr
                 {step === 1 ? (
                     <Button
                         variant="contained"
-                        disabled={selectedUsers.length === 0}
+                        disabled={selectedUsers.length < 2}
                         onClick={handleNext}
                         fullWidth
                         sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
                     >
                         Next
                     </Button>
+
                 ) : (
                     <Button
                         variant="contained"

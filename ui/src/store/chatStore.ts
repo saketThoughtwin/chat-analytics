@@ -10,7 +10,8 @@ interface Message {
   sender: string;
   roomId: string;
   message: string;
-  type?: 'text' | 'image' | 'video' | 'audio';
+  type?: 'text' | 'image' | 'video' | 'audio' | 'system';
+
   mediaUrl?: string;
   read: boolean;
   readAt?: string;
@@ -91,6 +92,8 @@ interface ChatState {
 
   createGroupRoom: (participants: string[], name: string) => Promise<void>;
   updateRoom: (roomId: string, data: Partial<Room>) => Promise<void>;
+  leaveRoom: (roomId: string) => Promise<void>;
+
 
 
   // Stories
@@ -541,6 +544,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error("Failed to update room", error);
     }
   },
+
+  leaveRoom: async (roomId: string) => {
+    try {
+      await api.post(API_ENDPOINTS.CHAT.ROOMS + `/${roomId}/leave`);
+      set((state) => ({
+        rooms: state.rooms.filter((r) => r._id !== roomId),
+        activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId
+      }));
+    } catch (error) {
+      console.error("Failed to leave room", error);
+    }
+  },
+
 
 
   initSocketEvents: () => {

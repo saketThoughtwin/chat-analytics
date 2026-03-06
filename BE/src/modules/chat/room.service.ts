@@ -123,6 +123,37 @@ class RoomService {
         return roomRepository.updateById(roomId, data);
     }
 
+    async leaveGroup(roomId: string, userId: string): Promise<IRoom | null> {
+        const room = await roomRepository.findById(roomId);
+        if (!room) return null;
+
+        // Remove from participants
+        const updatedParticipants = room.participants.filter(p => (p._id || p).toString() !== userId);
+
+        // Remove from unreadCounts
+        if (room.unreadCounts instanceof Map) {
+            room.unreadCounts.delete(userId);
+        } else if (typeof room.unreadCounts === 'object') {
+            delete (room.unreadCounts as any)[userId];
+        }
+
+        if (updatedParticipants.length === 0) {
+            await roomRepository.deleteById(roomId);
+            return null;
+        }
+
+        // If leaver was admin, assign a new one
+        let updatedAdmin = room.groupAdmin;
+        if (room.groupAdmin?.toString() === userId) {
+            updatedAdmin = updatedParticipants[0].toString();
+        }
+
+        return roomRepository.updateById(roomId, {
+            participants: updatedParticipants,
+            unreadCounts: room.unreadCounts,
+            groupAdmin: updatedAdmin
+        });
+    }
 
     /**
      * Delete a room
