@@ -6,7 +6,9 @@ export interface IRoom {
     name?: string; // Group name
     groupAdmin?: string; // User ID who created the group
     participants: string[]; // Array of user IDs
+    leftParticipants?: string[]; // Array of user IDs who left but have history
     lastMessage?: {
+
         messageId: string;
         message: string;
         senderId: string;
@@ -35,6 +37,12 @@ const RoomSchema = new Schema<IRoom>(
             required: true,
             index: true
         },
+        leftParticipants: {
+            type: [String],
+            ref: 'User',
+            default: []
+        },
+
         lastMessage: {
             messageId: String,
             message: String,

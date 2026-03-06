@@ -127,9 +127,9 @@ class RoomService {
         const room = await roomRepository.findById(roomId);
         if (!room) return null;
 
-        // Remove from participants
+        // Move from participants to leftParticipants
         const updatedParticipants = room.participants.filter(p => (typeof p === 'object' ? (p as any)._id : p).toString() !== userId);
-
+        const updatedLeftParticipants = [...(room.leftParticipants || []), userId];
 
         // Remove from unreadCounts
         if (room.unreadCounts instanceof Map) {
@@ -138,22 +138,20 @@ class RoomService {
             delete (room.unreadCounts as any)[userId];
         }
 
-        if (updatedParticipants.length === 0) {
-            await roomRepository.deleteById(roomId);
-            return null;
-        }
-
-        // If leaver was admin, assign a new one
+        // If leaver was admin, assign a new one if participants remain
         let updatedAdmin = room.groupAdmin;
-        if (room.groupAdmin?.toString() === userId) {
-            updatedAdmin = updatedParticipants[0].toString();
+        if (room.groupAdmin?.toString() === userId && updatedParticipants.length > 0) {
+            const firstParticipant = updatedParticipants[0];
+            updatedAdmin = (typeof firstParticipant === 'object' ? (firstParticipant as any)._id : firstParticipant).toString();
         }
 
         return roomRepository.updateById(roomId, {
             participants: updatedParticipants,
+            leftParticipants: updatedLeftParticipants,
             unreadCounts: room.unreadCounts,
             groupAdmin: updatedAdmin
         });
+
     }
 
     /**

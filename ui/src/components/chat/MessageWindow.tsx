@@ -47,6 +47,7 @@ import { useAuthStore } from "../../store/authStore";
 import { getSocket } from "../../lib/socket";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { Slider } from "@mui/material";
+import GroupInfoDialog from "./GroupInfoDialog";
 import Spinner from "../ui/Spinner"; // Added Spinner import
 
 // Custom Audio Player Component for stable UI
@@ -263,6 +264,7 @@ const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
 export default function MessageWindow() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [headerAnchorEl, setHeaderAnchorEl] = useState<null | HTMLElement>(null);
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
 
   const {
     activeRoomId,
@@ -785,7 +787,10 @@ export default function MessageWindow() {
             />
           )}
         </Box>
-        <Box>
+        <Box
+          onClick={() => isGroup && setIsGroupInfoOpen(true)}
+          sx={{ cursor: isGroup ? "pointer" : "default" }}
+        >
           <Typography variant="h6" fontWeight="700" lineHeight={1.2}>
             {isGroup ? activeRoom?.name : otherUser?.name}
           </Typography>
@@ -816,6 +821,7 @@ export default function MessageWindow() {
         </Box>
 
 
+
         <Box sx={{ ml: 'auto' }}>
           {isGroup && (
             <>
@@ -827,6 +833,12 @@ export default function MessageWindow() {
                 open={Boolean(headerAnchorEl)}
                 onClose={() => setHeaderAnchorEl(null)}
               >
+                <MenuItem onClick={() => {
+                  setIsGroupInfoOpen(true);
+                  setHeaderAnchorEl(null);
+                }}>
+                  Group Info
+                </MenuItem>
                 <MenuItem onClick={async () => {
                   if (activeRoomId) {
                     await leaveRoom(activeRoomId);
@@ -837,6 +849,7 @@ export default function MessageWindow() {
                   Leave Group
                 </MenuItem>
               </Menu>
+
             </>
           )}
         </Box>
@@ -1208,17 +1221,20 @@ export default function MessageWindow() {
                               (msg.read ? (
                                 <DoneAllIcon
                                   sx={{ fontSize: 14, color: "#4ade80" }}
+                                  titleAccess="Read by all"
                                 />
-                              ) : msg.delivered ? (
+                              ) : msg.deliveredAt || (msg.deliveredTo && msg.deliveredTo.length > 0) ? (
                                 <DoneAllIcon
                                   sx={{
                                     fontSize: 14,
-                                    color: "rgba(255,255,255,0.7)",
+                                    color: (msg.deliveredAt) ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.2)",
                                   }}
+                                  titleAccess={msg.deliveredAt ? "Delivered to all" : "Delivered"}
                                 />
                               ) : (
-                                <DoneIcon sx={{ fontSize: 14 }} />
+                                <DoneIcon sx={{ fontSize: 14, opacity: 0.5 }} />
                               ))}
+
                           </Box>
                         )}
                       </Paper>
@@ -1233,282 +1249,324 @@ export default function MessageWindow() {
       </Box>
 
       {/* Input */}
-      <Box
-        sx={{
-          p: 2,
-          bgcolor: "#f0f2f5",
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            bgcolor: "#fff",
-            p: 1,
-            borderRadius: "8px",
-            boxShadow: "none",
-            border: "1px solid rgba(0,0,0,0.05)",
-          }}
-        >
-          <TextField
-            fullWidth
-            placeholder={isRecording ? "Recording..." : "Type a message..."}
-            variant="standard"
-            InputProps={{ disableUnderline: true }}
-            value={isRecording ? "" : input}
-            onChange={handleTyping}
-            disabled={isRecording}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
+      {(() => {
+        const activeRoom = rooms.find(r => r._id === activeRoomId);
+        const hasLeft = activeRoom?.leftParticipants?.includes(currentUser?.id || '');
+
+        if (hasLeft) {
+          return (
+            <Box sx={{
+              p: 3,
+              bgcolor: "#f0f2f5",
+              borderTop: "1px solid rgba(0,0,0,0.06)",
+              display: "flex",
+              justifyContent: "center"
+            }}>
+              <Paper sx={{
+                px: 3,
+                py: 1,
+                bgcolor: "rgba(0,0,0,0.05)",
+                borderRadius: "20px",
+                boxShadow: "none"
+              }}>
+                <Typography variant="body2" color="textSecondary">
+                  You are no longer a member of this group
+                </Typography>
+              </Paper>
+            </Box>
+          );
+        }
+
+        return (
+          <Box
             sx={{
-              px: 2,
-              "& input": { fontSize: "0.95rem" },
+              p: 2,
+              bgcolor: "#f0f2f5",
+              position: "relative",
+              zIndex: 2,
             }}
-          />
-          {isRecording && (
+          >
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
-                px: 2,
-                color: "#ef4444",
+                bgcolor: "#fff",
+                p: 1,
+                borderRadius: "8px",
+                boxShadow: "none",
+                border: "1px solid rgba(0,0,0,0.05)",
               }}
             >
-              <FiberManualRecordIcon
-                sx={{ fontSize: 12, animation: "pulse 1.5s infinite" }}
+
+              <TextField
+                fullWidth
+                placeholder={isRecording ? "Recording..." : "Type a message..."}
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                value={isRecording ? "" : input}
+                onChange={handleTyping}
+                disabled={isRecording}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                sx={{
+                  px: 2,
+                  "& input": { fontSize: "0.95rem" },
+                }}
               />
-              <Typography variant="body2" fontWeight="600">
-                {formatTime(recordingTime)}
-              </Typography>
-              <style>
-                {`
+              {isRecording && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    px: 2,
+                    color: "#ef4444",
+                  }}
+                >
+                  <FiberManualRecordIcon
+                    sx={{ fontSize: 12, animation: "pulse 1.5s infinite" }}
+                  />
+                  <Typography variant="body2" fontWeight="600">
+                    {formatTime(recordingTime)}
+                  </Typography>
+                  <style>
+                    {`
                   @keyframes pulse {
                     0% { opacity: 1; }
                     50% { opacity: 0.3; }
                     100% { opacity: 1; }
                   }
                 `}
-              </style>
-            </Box>
-          )}
-          <IconButton
-            onClick={openCamera}
-            disabled={isRecording}
-            sx={{
-              color: "text.secondary",
-              transition: "all 0.2s",
-              "&:hover": { color: "#6366f1" },
-            }}
-          >
-            <CameraAltIcon fontSize="medium" />
-          </IconButton>
-          <IconButton
-            onClick={handleEmojiOpen}
-            disabled={isRecording}
-            sx={{
-              color: openEmoji ? "#6366f1" : "text.secondary",
-              transition: "all 0.2s",
-              "&:hover": { color: "#6366f1" },
-            }}
-          >
-            <EmojiEmotionsIcon fontSize="medium" />
-          </IconButton>
-          <Popover
-            open={openEmoji}
-            anchorEl={emojiAnchorEl}
-            onClose={handleEmojiClose}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            PaperProps={{
-              sx: {
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-                border: "none",
-                mt: -1,
-              },
-            }}
-          >
-            <EmojiPicker
-              onEmojiClick={onEmojiClick}
-              autoFocusSearch={false}
-              theme={"light" as any}
-              width={320}
-              height={400}
-              skinTonesDisabled
-              searchPlaceHolder="Search emoji..."
-            />
-          </Popover>
-          {input.trim() || isRecording ? (
-            <IconButton
-              onClick={isRecording ? stopRecording : handleSend}
-              sx={{
-                bgcolor: "#6366f1",
-                color: "white",
-                "&:hover": { bgcolor: "#4f46e5" },
-                width: 44,
-                height: 44,
-                borderRadius: "18px",
-                transition: "all 0.2s",
-              }}
-            >
-              {isRecording ? (
-                <StopIcon fontSize="small" />
-              ) : (
-                <SendIcon fontSize="small" />
+                  </style>
+                </Box>
               )}
-            </IconButton>
-          ) : (
-            <IconButton
-              onClick={startRecording}
-              sx={{
-                bgcolor: "rgba(0,0,0,0.05)",
-                color: "text.secondary",
-                "&:hover": { bgcolor: "rgba(0,0,0,0.1)", color: "#6366f1" },
-                width: 44,
-                height: 44,
-                borderRadius: "18px",
-                transition: "all 0.2s",
-              }}
-            >
-              <MicIcon fontSize="small" />
-            </IconButton>
-          )}
-        </Box>
-      </Box>
-
-      {/* Camera Modal */}
-      {isCameraOpen && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            bgcolor: "rgba(0,0,0,0.9)",
-            zIndex: 1000,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 2,
-          }}
-        >
-          <IconButton
-            onClick={closeCamera}
-            sx={{ position: "absolute", top: 20, right: 20, color: "white" }}
-          >
-            <CloseIcon />
-          </IconButton>
-
-          <Box
-            sx={{
-              position: "relative",
-              width: "100%",
-              maxWidth: 640,
-              borderRadius: "16px",
-              overflow: "hidden",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-            }}
-          >
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{ width: "100%", display: "block" }}
-            />
-            {isRecordingVideo && (
-              <Box
+              <IconButton
+                onClick={openCamera}
+                disabled={isRecording}
                 sx={{
-                  position: "absolute",
-                  top: 20,
-                  left: 20,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  color: "#ef4444",
-                  bgcolor: "rgba(0,0,0,0.5)",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "20px",
+                  color: "text.secondary",
+                  transition: "all 0.2s",
+                  "&:hover": { color: "#6366f1" },
                 }}
               >
-                <FiberManualRecordIcon
-                  sx={{ fontSize: 12, animation: "pulse 1.5s infinite" }}
+                <CameraAltIcon fontSize="medium" />
+              </IconButton>
+              <IconButton
+                onClick={handleEmojiOpen}
+                disabled={isRecording}
+                sx={{
+                  color: openEmoji ? "#6366f1" : "text.secondary",
+                  transition: "all 0.2s",
+                  "&:hover": { color: "#6366f1" },
+                }}
+              >
+                <EmojiEmotionsIcon fontSize="medium" />
+              </IconButton>
+              <Popover
+                open={openEmoji}
+                anchorEl={emojiAnchorEl}
+                onClose={handleEmojiClose}
+                anchorOrigin={{
+                  vertical: "top",
+                  horizontal: "right",
+                }}
+                transformOrigin={{
+                  vertical: "bottom",
+                  horizontal: "right",
+                }}
+                PaperProps={{
+                  sx: {
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                    border: "none",
+                    mt: -1,
+                  },
+                }}
+              >
+                <EmojiPicker
+                  onEmojiClick={onEmojiClick}
+                  autoFocusSearch={false}
+                  theme={"light" as any}
+                  width={320}
+                  height={400}
+                  skinTonesDisabled
+                  searchPlaceHolder="Search emoji..."
                 />
-                <Typography variant="caption" fontWeight="700">
-                  REC
-                </Typography>
-              </Box>
-            )}
-          </Box>
-
-          <Box sx={{ mt: 4, display: "flex", gap: 3 }}>
-            {!isRecordingVideo ? (
-              <>
+              </Popover>
+              {input.trim() || isRecording ? (
                 <IconButton
-                  onClick={capturePhoto}
+                  onClick={isRecording ? stopRecording : handleSend}
+                  sx={{
+                    bgcolor: "#6366f1",
+                    color: "white",
+                    "&:hover": { bgcolor: "#4f46e5" },
+                    width: 44,
+                    height: 44,
+                    borderRadius: "18px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {isRecording ? (
+                    <StopIcon fontSize="small" />
+                  ) : (
+                    <SendIcon fontSize="small" />
+                  )}
+                </IconButton>
+              ) : (
+                <IconButton
+                  onClick={startRecording}
+                  sx={{
+                    bgcolor: "rgba(0,0,0,0.05)",
+                    color: "text.secondary",
+                    "&:hover": { bgcolor: "rgba(0,0,0,0.1)", color: "#6366f1" },
+                    width: 44,
+                    height: 44,
+                    borderRadius: "18px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <MicIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Box>
+          </Box>
+        );
+      })()}
+
+
+      {/* Camera Modal */}
+      {isGroupInfoOpen && activeRoomId && (
+        <GroupInfoDialog
+          open={isGroupInfoOpen}
+          onClose={() => setIsGroupInfoOpen(false)}
+          roomId={activeRoomId}
+        />
+      )}
+      {
+        isCameraOpen && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: "rgba(0,0,0,0.9)",
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              p: 2,
+            }}
+          >
+            <IconButton
+              onClick={closeCamera}
+              sx={{ position: "absolute", top: 20, right: 20, color: "white" }}
+            >
+              <CloseIcon />
+            </IconButton>
+
+            <Box
+              sx={{
+                position: "relative",
+                width: "100%",
+                maxWidth: 640,
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+              }}
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{ width: "100%", display: "block" }}
+              />
+              {isRecordingVideo && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 20,
+                    left: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    color: "#ef4444",
+                    bgcolor: "rgba(0,0,0,0.5)",
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: "20px",
+                  }}
+                >
+                  <FiberManualRecordIcon
+                    sx={{ fontSize: 12, animation: "pulse 1.5s infinite" }}
+                  />
+                  <Typography variant="caption" fontWeight="700">
+                    REC
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            <Box sx={{ mt: 4, display: "flex", gap: 3 }}>
+              {!isRecordingVideo ? (
+                <>
+                  <IconButton
+                    onClick={capturePhoto}
+                    sx={{
+                      bgcolor: "white",
+                      color: "#1e293b",
+                      width: 64,
+                      height: 64,
+                      "&:hover": { bgcolor: "#f1f5f9" },
+                    }}
+                  >
+                    <CameraAltIcon fontSize="large" />
+                  </IconButton>
+                  <IconButton
+                    onClick={startVideoRecording}
+                    sx={{
+                      bgcolor: "#ef4444",
+                      color: "white",
+                      width: 64,
+                      height: 64,
+                      "&:hover": { bgcolor: "#dc2626" },
+                    }}
+                  >
+                    <VideocamIcon fontSize="large" />
+                  </IconButton>
+                </>
+              ) : (
+                <IconButton
+                  onClick={stopVideoRecording}
                   sx={{
                     bgcolor: "white",
-                    color: "#1e293b",
+                    color: "#ef4444",
                     width: 64,
                     height: 64,
                     "&:hover": { bgcolor: "#f1f5f9" },
                   }}
                 >
-                  <CameraAltIcon fontSize="large" />
+                  <StopIcon fontSize="large" />
                 </IconButton>
-                <IconButton
-                  onClick={startVideoRecording}
-                  sx={{
-                    bgcolor: "#ef4444",
-                    color: "white",
-                    width: 64,
-                    height: 64,
-                    "&:hover": { bgcolor: "#dc2626" },
-                  }}
-                >
-                  <VideocamIcon fontSize="large" />
-                </IconButton>
-              </>
-            ) : (
-              <IconButton
-                onClick={stopVideoRecording}
-                sx={{
-                  bgcolor: "white",
-                  color: "#ef4444",
-                  width: 64,
-                  height: 64,
-                  "&:hover": { bgcolor: "#f1f5f9" },
-                }}
-              >
-                <StopIcon fontSize="large" />
-              </IconButton>
-            )}
+              )}
+            </Box>
+            <Typography sx={{ color: "white", mt: 2, opacity: 0.7 }}>
+              {isRecordingVideo
+                ? "Recording video..."
+                : "Capture a photo or record a video"}
+            </Typography>
           </Box>
-          <Typography sx={{ color: "white", mt: 2, opacity: 0.7 }}>
-            {isRecordingVideo
-              ? "Recording video..."
-              : "Capture a photo or record a video"}
-          </Typography>
-        </Box>
-      )}
+        )
+      }
       {/* Message Menu */}
       <Menu
         anchorEl={messageMenuAnchor}

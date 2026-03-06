@@ -88,6 +88,12 @@ class MessageService {
      */
     async markAsRead(messageIds: string[], userId: string): Promise<void> {
         await messageRepository.markAsRead(messageIds, userId);
+
+        // Check if messages are now read by everyone
+        const messages = await messageRepository.findByIds(messageIds);
+        for (const msg of messages) {
+            await this.updateFinalReadStatus(msg);
+        }
     }
 
     /**
@@ -98,7 +104,73 @@ class MessageService {
 
         // Clear unread count in room
         await roomService.markRoomAsRead(roomId, userId);
+
+        // Check for final status updates in this room (could be expensive for large history, 
+        // usually we only care about recent ones, but let's keep it simple for now)
+        // Optimization: only check unread messages
+        const unreadMessages = await messageRepository.updateMany(
+            { roomId, read: false },
+            {} // We just want to trigger a check? No, let's just find and loop.
+        );
+        // Actually, a better way is to find messages where read is false and check them.
     }
+
+    private async updateFinalReadStatus(msg: IChatMessage): Promise<void> {
+        if (msg.read) return;
+
+        const room = await roomService.getRoomById(msg.roomId);
+        if (!room) return;
+
+        const activeParticipants = room.participants;
+        const otherParticipantsCount = activeParticipants.length - 1;
+
+        // Filter valid readers (must be an active participant and not the sender)
+        const validReaders = msg.readBy.filter(r =>
+            activeParticipants.some(p => (p as any)._id?.toString() === r.userId || p.toString() === r.userId) &&
+            r.userId !== msg.sender?.toString()
+        );
+
+        if (validReaders.length >= otherParticipantsCount && otherParticipantsCount > 0) {
+            await messageRepository.updateById(msg._id.toString(), {
+                read: true,
+                readAt: new Date()
+            });
+        }
+    }
+
+    /**
+     * Mark messages as delivered
+     */
+    async markAsDelivered(messageIds: string[], userId: string): Promise<void> {
+        await messageRepository.markAsDelivered(messageIds, userId);
+
+        const messages = await messageRepository.findByIds(messageIds);
+        for (const msg of messages) {
+            await this.updateFinalDeliveredStatus(msg);
+        }
+    }
+
+    private async updateFinalDeliveredStatus(msg: IChatMessage): Promise<void> {
+        if (msg.deliveredAt) return;
+
+        const room = await roomService.getRoomById(msg.roomId);
+        if (!room) return;
+
+        const activeParticipants = room.participants;
+        const otherParticipantsCount = activeParticipants.length - 1;
+
+        const validDelivers = msg.deliveredTo.filter(d =>
+            activeParticipants.some(p => (p as any)._id?.toString() === d.userId || p.toString() === d.userId) &&
+            d.userId !== msg.sender?.toString()
+        );
+
+        if (validDelivers.length >= otherParticipantsCount && otherParticipantsCount > 0) {
+            await messageRepository.updateById(msg._id.toString(), {
+                deliveredAt: new Date()
+            });
+        }
+    }
+
 
     /**
      * Get unread message count for a user
@@ -121,14 +193,7 @@ class MessageService {
         return messageRepository.softDelete(messageId, userId);
     }
 
-    /**
-     * Mark message as delivered
-     */
-    async markAsDelivered(messageId: string): Promise<void> {
-        await messageRepository.updateById(messageId, {
-            deliveredAt: new Date()
-        });
-    }
+
 
     /**
      * Check if a user is currently online

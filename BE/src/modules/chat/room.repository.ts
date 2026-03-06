@@ -10,7 +10,13 @@ class RoomRepository {
     }
 
     async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
-        const query = Room.find({ participants: userId })
+        const query = Room.find({
+            $or: [
+                { participants: userId },
+                { leftParticipants: userId }
+            ]
+        })
+
             .populate('participants', '-password')
             .sort({ updatedAt: -1 })
             .skip(options?.skip || 0)
@@ -80,8 +86,14 @@ class RoomRepository {
     }
 
     async countByParticipant(userId: string) {
-        return Room.countDocuments({ participants: userId });
+        return Room.countDocuments({
+            $or: [
+                { participants: userId },
+                { leftParticipants: userId }
+            ]
+        });
     }
+
 
     async findLastMessage(roomId: string) {
         // Import ChatMessage here to avoid circular dependency if any, 

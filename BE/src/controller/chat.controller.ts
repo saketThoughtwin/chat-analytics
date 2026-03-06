@@ -155,17 +155,26 @@ export default class ChatController {
       receiver,
     });
 
-    // Emit to room via socket (all participants will receive it)
-    io.to(roomId).emit("receive_message", newMsg);
-
-    // Check if receiver is online and mark as delivered
-    if (receiver) {
-      const isOnline = await messageService.isUserOnline(receiver);
-      if (isOnline) {
-        await messageService.markAsDelivered(newMsg._id.toString());
-        io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+    // Check online participants and mark as delivered
+    const onlineParticipants: string[] = [];
+    for (const participant of room.participants) {
+      const pId = (participant as any)._id ? (participant as any)._id.toString() : participant.toString();
+      if (pId !== userId) {
+        const isOnline = await messageService.isUserOnline(pId);
+        if (isOnline) {
+          onlineParticipants.push(pId);
+        }
       }
     }
+
+    if (onlineParticipants.length > 0) {
+      for (const pId of onlineParticipants) {
+        await messageService.markAsDelivered([newMsg._id.toString()], pId);
+      }
+      io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+    }
+
+
 
     res.status(201).json(newMsg);
   }
@@ -211,17 +220,26 @@ export default class ChatController {
 
     console.log(`Media message sent: ${type}, URL: ${(file as any).path}`);
 
-    // Emit to room via socket
-    io.to(roomId).emit("receive_message", newMsg);
-
-    if (receiver) {
-      const isOnline = await messageService.isUserOnline(receiver);
-      if (isOnline) {
-        await messageService.markAsDelivered(newMsg._id.toString());
-        // Ensure roomId is included in the delivery receipt
-        io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+    // Check online participants and mark as delivered
+    const onlineParticipants: string[] = [];
+    for (const participant of room.participants) {
+      const pId = (participant as any)._id ? (participant as any)._id.toString() : participant.toString();
+      if (pId !== userId) {
+        const isOnline = await messageService.isUserOnline(pId);
+        if (isOnline) {
+          onlineParticipants.push(pId);
+        }
       }
     }
+
+    if (onlineParticipants.length > 0) {
+      for (const pId of onlineParticipants) {
+        await messageService.markAsDelivered([newMsg._id.toString()], pId);
+      }
+      io.to(roomId).emit("message_delivered", { messageId: newMsg._id, roomId });
+    }
+
+
 
     res.status(201).json(newMsg);
   }

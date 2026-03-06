@@ -17,6 +17,8 @@ interface Message {
   readAt?: string;
   delivered?: boolean;
   deliveredAt?: string;
+  readBy?: { userId: string; at: string }[];
+  deliveredTo?: { userId: string; at: string }[];
   createdAt: string;
   tempId?: string;
   pending?: boolean;
@@ -24,15 +26,18 @@ interface Message {
   starred?: boolean;
 }
 
+
 interface Room {
   _id: string;
   type?: 'direct' | 'group';
   name?: string;
   groupAdmin?: string;
   participants: any[];
+  leftParticipants?: string[];
   lastMessage?: Message;
   unreadCount?: number;
 }
+
 
 
 export interface Story {
@@ -547,15 +552,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   leaveRoom: async (roomId: string) => {
     try {
-      await api.post(API_ENDPOINTS.CHAT.ROOMS + `/${roomId}/leave`);
-      set((state) => ({
-        rooms: state.rooms.filter((r) => r._id !== roomId),
-        activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId
-      }));
+      await api.post(`${API_ENDPOINTS.CHAT.ROOMS}/${roomId}/leave`);
+      // Refresh rooms to get the updated participants/leftParticipants state
+      await get().fetchRooms();
     } catch (error) {
       console.error("Failed to leave room", error);
     }
   },
+
 
 
 

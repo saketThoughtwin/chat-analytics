@@ -9,7 +9,12 @@ class MessageRepository {
         return ChatMessage.findById(id).lean();
     }
 
+    async findByIds(ids: string[]) {
+        return ChatMessage.find({ _id: { $in: ids } }).lean();
+    }
+
     async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
+
         return ChatMessage.find({ roomId })
             .sort(options?.sort || { createdAt: -1 })
             .skip(options?.skip || 0)
@@ -54,33 +59,55 @@ class MessageRepository {
         return ChatMessage.updateMany(filter, update);
     }
 
-    async markAsRead(messageIds: string[], receiverId: string) {
+    async markAsRead(messageIds: string[], userId: string) {
         return ChatMessage.updateMany(
             {
                 _id: { $in: messageIds },
-                sender: { $ne: receiverId },
-                read: false
+                sender: { $ne: userId }
             },
             {
-                read: true,
-                readAt: new Date()
+                $addToSet: { readBy: { userId, at: new Date() } }
             }
         );
     }
 
-    async markRoomAsRead(roomId: string, receiverId: string) {
+
+    async markRoomAsRead(roomId: string, userId: string) {
         return ChatMessage.updateMany(
             {
                 roomId,
-                sender: { $ne: receiverId },
-                read: false
+                sender: { $ne: userId }
             },
             {
-                read: true,
-                readAt: new Date()
+                $addToSet: { readBy: { userId, at: new Date() } }
             }
         );
     }
+
+    async markAsDelivered(messageIds: string[], userId: string) {
+        return ChatMessage.updateMany(
+            {
+                _id: { $in: messageIds },
+                sender: { $ne: userId }
+            },
+            {
+                $addToSet: { deliveredTo: { userId, at: new Date() } }
+            }
+        );
+    }
+
+    async markRoomAsDelivered(roomId: string, userId: string) {
+        return ChatMessage.updateMany(
+            {
+                roomId,
+                sender: { $ne: userId }
+            },
+            {
+                $addToSet: { deliveredTo: { userId, at: new Date() } }
+            }
+        );
+    }
+
 
     async softDelete(id: string, senderId: string) {
         return ChatMessage.findOneAndUpdate(

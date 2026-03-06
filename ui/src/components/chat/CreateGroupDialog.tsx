@@ -131,9 +131,9 @@ export default function CreateGroupDialog({ open, onClose }: CreateGroupDialogPr
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <Typography variant="caption" color="textSecondary">
+                        {/* <Typography variant="caption" color="textSecondary">
                             {selectedUsers.length} / 2 minimum
-                        </Typography>
+                        </Typography> */}
                         <IconButton onClick={handleClose} size="small">
                             <CloseIcon />
                         </IconButton>

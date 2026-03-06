@@ -267,9 +267,6 @@ export default function RoomList() {
             >
               Chat-Analytics
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
-              {totalOnlineCount} online
-            </Typography>
           </Box>
 
         </Box>

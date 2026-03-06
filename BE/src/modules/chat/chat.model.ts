@@ -14,7 +14,10 @@ export interface IChatMessage extends Document {
   read: boolean;
   deleted: boolean;
   starredBy: string[];
+  readBy: { userId: string; at: Date }[];
+  deliveredTo: { userId: string; at: Date }[];
 }
+
 
 const ChatSchema = new Schema<IChatMessage>(
   {
@@ -29,10 +32,19 @@ const ChatSchema = new Schema<IChatMessage>(
     deliveredAt: { type: Date },
     readAt: { type: Date },
     deleted: { type: Boolean, default: false },
-    starredBy: { type: [String], default: [] }
+    starredBy: { type: [String], default: [] },
+    readBy: [{
+      userId: { type: String, ref: 'User' },
+      at: { type: Date, default: Date.now }
+    }],
+    deliveredTo: [{
+      userId: { type: String, ref: 'User' },
+      at: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );
+
 
 // FAST room message pagination
 ChatSchema.index({ roomId: 1, deleted: 1, createdAt: -1 });

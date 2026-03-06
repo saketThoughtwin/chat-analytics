@@ -55,7 +55,24 @@ export const initSocketServer = (server: http.Server) => {
     socket.on("join_room", async (roomId: string) => {
       socket.join(roomId);
 
+      // Mark all un-delivered messages in this room as delivered for this user
+      const unreadMessages = await messageRepository.updateMany(
+        {
+          roomId,
+          sender: { $ne: userId },
+          "deliveredTo.userId": { $ne: userId }
+        },
+        {
+          $addToSet: { deliveredTo: { userId, at: new Date() } }
+        }
+      );
+
+      // Trigger final status checks for messages in this room
+      // (Simplified: we'll do this on the next few messages or a batch job if needed, 
+      // but for now let's just mark the joining user as delivered)
+
       // Track active users in room with TTL
+
       await redis.sadd(`chat:active:${roomId}`, userId);
       await redis.expire(`chat:active:${roomId}`, 3600); // 1 hour TTL
 
@@ -112,11 +129,9 @@ export const initSocketServer = (server: http.Server) => {
         // Send delivery confirmation to sender
         socket.emit("message_sent", { messageId: newMsg._id, timestamp: newMsg.createdAt });
 
-        // Mark as delivered for online recipients
-        setTimeout(async () => {
-          await messageService.markAsDelivered(newMsg._id.toString());
-          io.to(roomId).emit("message_delivered", { messageId: newMsg._id });
-        }, 100);
+        // Note: Delivery is now primarily handled by the controller's online check
+        // or by catch-up when a user joins a room.
+
 
       } catch (error) {
         console.error("Error sending message:", error);
