@@ -409,7 +409,8 @@ export default class ChatController {
 
     // Create system message
     const systemMsg = await messageRepository.create({
-      sender: null,
+      sender: undefined,
+
       roomId,
       message: `${(user as any).name || 'A user'} left the group`,
       type: 'system',

@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatMessage extends Document {
-  sender: string;
+  sender?: string;
+
   receiver?: string; // For backward compatibility, but roomId is now primary
   roomId: string; // Now required - all messages belong to a room
   message: string;

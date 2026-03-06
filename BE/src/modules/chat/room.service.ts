@@ -128,7 +128,8 @@ class RoomService {
         if (!room) return null;
 
         // Remove from participants
-        const updatedParticipants = room.participants.filter(p => (p._id || p).toString() !== userId);
+        const updatedParticipants = room.participants.filter(p => (typeof p === 'object' ? (p as any)._id : p).toString() !== userId);
+
 
         // Remove from unreadCounts
         if (room.unreadCounts instanceof Map) {
