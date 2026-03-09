@@ -38,7 +38,7 @@ class RoomRepository {
     }
 
     async updateById(id: string, update: Partial<IRoom>) {
-        return Room.findByIdAndUpdate(id, update, { new: true });
+        return Room.findByIdAndUpdate(id, update, { new: true }).populate('participants', '-password');
     }
 
     async updateLastMessage(roomId: string, messageId: string, message: string, senderId: string) {

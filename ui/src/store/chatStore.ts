@@ -703,14 +703,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const updateMsg = (m: Message) => {
           if (m._id !== messageId) return m;
           const deliveredTo = m.deliveredTo || [];
-          if (userId && !deliveredTo.some(d => d.userId === userId)) {
+          const room = state.rooms.find(r => r._id === roomId);
+          const activeParticipants = room?.participants?.filter(p => !room.leftParticipants?.includes((p._id || p).toString())) || [];
+          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+
+          if (userId && !deliveredTo.some((d: any) => d.userId === userId)) {
+            const updatedDeliveredTo = [...deliveredTo, { userId, at: at || new Date().toISOString() }];
+            const isEveryoneDelivered = updatedDeliveredTo.length >= otherParticipantsCount && otherParticipantsCount > 0;
             return {
               ...m,
-              delivered: true,
-              deliveredTo: [...deliveredTo, { userId, at: at || new Date().toISOString() }]
+              delivered: isEveryoneDelivered,
+              deliveredTo: updatedDeliveredTo
             };
           }
-          return { ...m, delivered: true };
+          return m;
         };
 
         return {
@@ -738,7 +744,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           if (userId && !currentReadBy.some(r => r.userId === userId)) {
             updatedReadBy = [...currentReadBy, { userId, at: at || new Date().toISOString() }];
           }
-          return { ...msg, read: true, readBy: updatedReadBy };
+
+          const room = state.rooms.find(r => r._id === roomId);
+          const activeParticipants = room?.participants?.filter(p => !room.leftParticipants?.includes((p._id || p).toString())) || [];
+          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+          const isEveryoneRead = updatedReadBy.length >= otherParticipantsCount && otherParticipantsCount > 0;
+
+          return { ...msg, read: isEveryoneRead, readBy: updatedReadBy };
         };
 
         return {

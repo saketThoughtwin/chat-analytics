@@ -1040,8 +1040,27 @@ export default function MessageWindow() {
                           borderBottomLeftRadius: isMe ? "8px" : "0px",
                           boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)",
                           position: "relative",
+                          display: "flex",
+                          flexDirection: "column",
                         }}
                       >
+                        {!isMe && isGroup && !msg.deleted && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "#e67e22",
+                              fontWeight: "700",
+                              mb: 0.5,
+                              fontSize: "0.75rem",
+                              lineHeight: 1
+                            }}
+                          >
+                            {(() => {
+                              const sender = activeRoom?.participants.find(p => (p._id || p).toString() === msg.sender);
+                              return typeof sender === 'object' ? sender.name : 'Unknown';
+                            })()}
+                          </Typography>
+                        )}
                         <Box sx={{ fontSize: "0.95rem", lineHeight: 1.5 }}>
                           {msg.deleted ? (
                             <Box

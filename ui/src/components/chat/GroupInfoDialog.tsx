@@ -21,7 +21,8 @@ import {
     Stack,
     ListItemButton,
     Divider,
-    Paper
+    Paper,
+    DialogContentText
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -59,6 +60,8 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
     const [users, setUsers] = useState<User[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [removalConfirmOpen, setRemovalConfirmOpen] = useState(false);
+    const [userToRemove, setUserToRemove] = useState<string | null>(null);
 
     const isAdmin = currentUser?.id === room?.groupAdmin;
 
@@ -126,13 +129,19 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
         }
     };
 
-    const handleRemoveUser = async (userIdToRemove: string) => {
-        if (!window.confirm('Are you sure you want to remove this member?')) return;
+    const handleRemoveUserClick = (userId: string) => {
+        setUserToRemove(userId);
+        setRemovalConfirmOpen(true);
+    };
+
+    const handleConfirmRemoval = async () => {
+        if (!userToRemove) return;
+        setRemovalConfirmOpen(false);
         setSaving(true);
         try {
             const currentParticipantIds = room?.participants.map((p) => (p._id || p)) || [];
             await updateRoom(roomId, {
-                participants: currentParticipantIds.filter((id) => id !== userIdToRemove)
+                participants: currentParticipantIds.filter((id) => id !== userToRemove)
             });
         } catch (error) {
             console.error('Failed to remove user', error);
@@ -266,7 +275,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                                         key={pId}
                                         secondaryAction={
                                             isAdmin && !isMemberMe && (
-                                                <IconButton edge="end" size="small" onClick={() => handleRemoveUser(pId)} sx={{ color: '#ef4444', opacity: 0.7 }}>
+                                                <IconButton edge="end" size="small" onClick={() => handleRemoveUserClick(pId)} sx={{ color: '#ef4444', opacity: 0.7 }}>
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
                                             )
@@ -294,6 +303,28 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
             <DialogActions>
                 <Button onClick={onClose} fullWidth variant="outlined" sx={{ borderRadius: '8px' }}>Close</Button>
             </DialogActions>
+
+            {/* Removal Confirmation Dialog */}
+            <Dialog
+                open={removalConfirmOpen}
+                onClose={() => setRemovalConfirmOpen(false)}
+                PaperProps={{ sx: { borderRadius: 3 } }}
+            >
+                <DialogTitle>Remove Member?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to remove this member from the group?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setRemovalConfirmOpen(false)} color="inherit" sx={{ borderRadius: 2 }}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleConfirmRemoval} color="error" variant="contained" sx={{ borderRadius: 2, boxShadow: 'none' }}>
+                        Remove
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Dialog>
     );
 }
