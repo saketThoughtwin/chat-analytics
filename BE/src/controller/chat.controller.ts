@@ -467,7 +467,49 @@ export default class ChatController {
     }
 
 
+    const oldParticipants = room.participants.map((p: any) => (p._id || p).toString());
     const updatedRoom = await roomService.updateRoom(roomId, { name, participants });
+
+    if (updatedRoom && participants) {
+      const newParticipantIds = participants.filter((id: string) => !oldParticipants.includes(id.toString()));
+      const removedParticipantIds = oldParticipants.filter((id: string) => !participants.includes(id));
+
+      const adminName = (room.participants.find((p: any) => (p._id || p).toString() === userId) as any)?.name || 'Admin';
+
+      // Handling Additions
+      for (const newId of newParticipantIds) {
+        const newUser = updatedRoom.participants.find((p: any) => (p._id || p).toString() === newId.toString());
+        const newUserName = typeof newUser === 'object' ? (newUser as any).name : 'A user';
+
+        const systemMsg = await messageRepository.create({
+          sender: undefined,
+          roomId,
+          message: `${adminName} added ${newUserName}`,
+          type: 'system',
+          read: true,
+          deleted: false
+        });
+
+        io.to(roomId).emit("receive_message", systemMsg);
+      }
+
+      // Handling Removals
+      for (const removedId of removedParticipantIds) {
+        const removedUser = room.participants.find((p: any) => (p._id || p).toString() === removedId);
+        const removedUserName = typeof removedUser === 'object' ? (removedUser as any).name : 'A user';
+
+        const systemMsg = await messageRepository.create({
+          sender: undefined,
+          roomId,
+          message: `${adminName} removed ${removedUserName}`,
+          type: 'system',
+          read: true,
+          deleted: false
+        });
+
+        io.to(roomId).emit("receive_message", systemMsg);
+      }
+    }
 
     // Notify participants of the update
     io.to(roomId).emit("room_update", updatedRoom);
@@ -494,7 +536,7 @@ export default class ChatController {
       sender: undefined,
 
       roomId,
-      message: `${(user as any).name || 'A user'} left the group`,
+      message: `${(user as any).name || 'A user'} left`,
       type: 'system',
       read: true,
       deleted: false

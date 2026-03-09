@@ -265,37 +265,39 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                         </Box>
                     ) : (
                         <List>
-                            {room.participants.map((p: any) => {
-                                const pId = (p._id || p).toString();
-                                const isMemberMe = pId === currentUser?.id;
-                                const isMemberAdmin = pId === room.groupAdmin;
+                            {room.participants
+                                .filter((p: any) => !room.leftParticipants?.includes((p._id || p).toString()))
+                                .map((p: any) => {
+                                    const pId = (p._id || p).toString();
+                                    const isMemberMe = pId === currentUser?.id;
+                                    const isMemberAdmin = pId === room.groupAdmin;
 
-                                return (
-                                    <ListItem
-                                        key={pId}
-                                        secondaryAction={
-                                            isAdmin && !isMemberMe && (
-                                                <IconButton edge="end" size="small" onClick={() => handleRemoveUserClick(pId)} sx={{ color: '#ef4444', opacity: 0.7 }}>
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
-                                            )
-                                        }
-                                    >
-                                        <ListItemAvatar>
-                                            <Avatar src={p.avatar}>{p.name?.charAt(0) || 'U'}</Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Box display="flex" alignItems="center" gap={0.5}>
-                                                    <Typography variant="body2">{p.name || 'Unknown'}</Typography>
-                                                    {isMemberMe && <Chip label="You" size="small" variant="outlined" sx={{ height: 16, fontSize: '0.65rem' }} />}
-                                                    {isMemberAdmin && <Chip label="Admin" size="small" color="primary" sx={{ height: 16, fontSize: '0.65rem', bgcolor: '#6366f1' }} />}
-                                                </Box>
+                                    return (
+                                        <ListItem
+                                            key={pId}
+                                            secondaryAction={
+                                                isAdmin && !isMemberMe && (
+                                                    <IconButton edge="end" size="small" onClick={() => handleRemoveUserClick(pId)} sx={{ color: '#ef4444', opacity: 0.7 }}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                )
                                             }
-                                        />
-                                    </ListItem>
-                                );
-                            })}
+                                        >
+                                            <ListItemAvatar>
+                                                <Avatar src={p.avatar}>{p.name?.charAt(0) || 'U'}</Avatar>
+                                            </ListItemAvatar>
+                                            <ListItemText
+                                                primary={
+                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                        <Typography variant="body2">{p.name || 'Unknown'}</Typography>
+                                                        {isMemberMe && <Chip label="You" size="small" variant="outlined" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                                                        {isMemberAdmin && <Chip label="Admin" size="small" color="primary" sx={{ height: 16, fontSize: '0.65rem', bgcolor: '#6366f1' }} />}
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    );
+                                })}
                         </List>
                     )}
                 </Box>

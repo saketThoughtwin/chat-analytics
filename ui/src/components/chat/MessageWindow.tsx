@@ -1048,7 +1048,19 @@ export default function MessageWindow() {
                           <Typography
                             variant="caption"
                             sx={{
-                              color: "#e67e22",
+                              color: (() => {
+                                const colors = [
+                                  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+                                  "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+                                  "#bcbd22", "#17becf", "#6366f1", "#e67e22"
+                                ];
+                                const senderId = msg.sender || "";
+                                let hash = 0;
+                                for (let i = 0; i < senderId.length; i++) {
+                                  hash = senderId.charCodeAt(i) + ((hash << 5) - hash);
+                                }
+                                return colors[Math.abs(hash) % colors.length];
+                              })(),
                               fontWeight: "700",
                               mb: 0.5,
                               fontSize: "0.75rem",
