@@ -804,7 +804,7 @@ export default function MessageWindow() {
             </Typography>
           ) : isGroup ? (
             <Typography variant="caption" color="text.secondary">
-              {activeRoom?.participants.length} members{activeCount > 0 ? `, ${activeCount} online` : ""}
+              {activeRoom?.participants.filter((p: any) => !activeRoom.leftParticipants?.includes((p._id || p).toString())).length} members{activeCount > 0 ? `, ${activeCount} online` : ""}
             </Typography>
           ) : isOnline ? (
             <Typography
@@ -823,35 +823,50 @@ export default function MessageWindow() {
 
 
         <Box sx={{ ml: 'auto' }}>
-          {isGroup && (
-            <>
-              <IconButton onClick={(e) => setHeaderAnchorEl(e.currentTarget)}>
-                <MoreVertIcon />
-              </IconButton>
-              <Menu
-                anchorEl={headerAnchorEl}
-                open={Boolean(headerAnchorEl)}
-                onClose={() => setHeaderAnchorEl(null)}
-              >
-                <MenuItem onClick={() => {
-                  setIsGroupInfoOpen(true);
-                  setHeaderAnchorEl(null);
-                }}>
-                  Group Info
-                </MenuItem>
-                <MenuItem onClick={async () => {
-                  if (activeRoomId) {
-                    await leaveRoom(activeRoomId);
+          {isGroup && (() => {
+            const hasLeft = activeRoom?.leftParticipants?.includes(currentUser?.id || '');
+            return (
+              <>
+                <IconButton onClick={(e) => setHeaderAnchorEl(e.currentTarget)}>
+                  <MoreVertIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={headerAnchorEl}
+                  open={Boolean(headerAnchorEl)}
+                  onClose={() => setHeaderAnchorEl(null)}
+                >
+                  <MenuItem onClick={() => {
+                    setIsGroupInfoOpen(true);
                     setHeaderAnchorEl(null);
-                    router.push('/');
-                  }
-                }} sx={{ color: 'error.main' }}>
-                  Leave Group
-                </MenuItem>
-              </Menu>
-
-            </>
-          )}
+                  }}>
+                    Group Info
+                  </MenuItem>
+                  {hasLeft ? (
+                    <MenuItem onClick={async () => {
+                      if (activeRoomId) {
+                        const { deleteRoom } = useChatStore.getState();
+                        await deleteRoom(activeRoomId);
+                        setHeaderAnchorEl(null);
+                        router.push('/');
+                      }
+                    }} sx={{ color: 'error.main' }}>
+                      Delete Chat
+                    </MenuItem>
+                  ) : (
+                    <MenuItem onClick={async () => {
+                      if (activeRoomId) {
+                        await leaveRoom(activeRoomId);
+                        setHeaderAnchorEl(null);
+                        router.push('/');
+                      }
+                    }} sx={{ color: 'error.main' }}>
+                      Leave Group
+                    </MenuItem>
+                  )}
+                </Menu>
+              </>
+            );
+          })()}
         </Box>
       </Box>
 

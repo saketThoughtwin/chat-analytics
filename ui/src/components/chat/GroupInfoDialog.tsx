@@ -205,7 +205,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                         </Box>
                     )}
                     <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        Group • {room.participants.length} members
+                        Group • {room.participants.filter((p: any) => !room.leftParticipants?.includes((p._id || p).toString())).length} members
                     </Typography>
                 </Box>
 

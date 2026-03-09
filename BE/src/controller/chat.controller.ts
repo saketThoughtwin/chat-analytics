@@ -425,14 +425,22 @@ export default class ChatController {
     if (!room) throw new ApiError(404, "Room not found");
 
     const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    const hasLeft = room.leftParticipants?.some((p: any) => (p._id || p).toString() === userId);
     const isAdmin = room.groupAdmin === userId;
 
-    if (!isParticipant && !isAdmin) {
+    if (!isParticipant && !isAdmin && !hasLeft) {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
-    if (room.type === "group" && !isAdmin) {
+    if (room.type === "group" && !isAdmin && isParticipant) {
       throw new ApiError(403, "Only group admins can delete the room");
+    }
+
+    // If user has left, "deleting" means removing them from leftParticipants so it's hidden
+    if (hasLeft && !isAdmin) {
+      const updatedLeftParticipants = room.leftParticipants?.filter((p: any) => (p._id || p).toString() !== userId) || [];
+      await roomService.updateRoom(roomId, { leftParticipants: updatedLeftParticipants });
+      return res.json({ message: "Chat removed successfully" });
     }
 
     // Delete all messages in the room
