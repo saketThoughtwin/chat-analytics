@@ -1220,16 +1220,16 @@ export default function MessageWindow() {
                             {isMe &&
                               (msg.read ? (
                                 <DoneAllIcon
-                                  sx={{ fontSize: 14, color: "#4ade80" }}
+                                  sx={{ fontSize: 14, color: "#53bdeb" }}
                                   titleAccess="Read by all"
                                 />
-                              ) : msg.deliveredAt || (msg.deliveredTo && msg.deliveredTo.length > 0) ? (
+                              ) : msg.deliveredAt ? (
                                 <DoneAllIcon
                                   sx={{
                                     fontSize: 14,
-                                    color: (msg.deliveredAt) ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.2)",
+                                    color: "rgba(0,0,0,0.45)",
                                   }}
-                                  titleAccess={msg.deliveredAt ? "Delivered to all" : "Delivered"}
+                                  titleAccess="Delivered to all"
                                 />
                               ) : (
                                 <DoneIcon sx={{ fontSize: 14, opacity: 0.5 }} />

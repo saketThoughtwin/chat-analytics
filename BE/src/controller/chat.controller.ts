@@ -137,8 +137,15 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    const hasLeft = room.leftParticipants?.some((p: any) => (p._id || p).toString() === userId);
+
+    if (!isParticipant && !hasLeft) {
       throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    if (hasLeft) {
+      throw new ApiError(403, "You have left this group and cannot send messages");
     }
 
     // Determine receiver for direct chats
@@ -206,8 +213,15 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    const hasLeft = room.leftParticipants?.some((p: any) => (p._id || p).toString() === userId);
+
+    if (!isParticipant && !hasLeft) {
       throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    if (hasLeft) {
+      throw new ApiError(403, "You have left this group and cannot send messages");
     }
 
     // Determine receiver for direct chats
@@ -286,7 +300,10 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    const hasLeft = room.leftParticipants?.some((p: any) => (p._id || p).toString() === userId);
+
+    if (!isParticipant && !hasLeft) {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
@@ -407,8 +424,15 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    if (!room.participants.some((p: any) => (p._id || p).toString() === userId)) {
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    const isAdmin = room.groupAdmin === userId;
+
+    if (!isParticipant && !isAdmin) {
       throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    if (room.type === "group" && !isAdmin) {
+      throw new ApiError(403, "Only group admins can delete the room");
     }
 
     // Delete all messages in the room
@@ -432,9 +456,15 @@ export default class ChatController {
     const room = await roomService.getRoomById(roomId);
     if (!room) throw new ApiError(404, "Room not found");
 
-    // Only allow participants to update the room
+    // For group rooms, only admin can update participants or change name
+    const isAdmin = room.groupAdmin === userId;
     const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+
     if (!isParticipant) throw new ApiError(403, "Forbidden");
+
+    if (room.type === 'group' && !isAdmin && (participants || name)) {
+      throw new ApiError(403, "Only group admins can update group settings or members");
+    }
 
 
     const updatedRoom = await roomService.updateRoom(roomId, { name, participants });
