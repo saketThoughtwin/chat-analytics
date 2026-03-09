@@ -31,7 +31,8 @@ export const RoutesConstants = {
         DELETE_MESSAGE: '/messages/:messageId',
         STAR_MESSAGE: '/messages/:messageId/star',
         STARRED_MESSAGES: '/rooms/:roomId/starred',
-        ALL_STARRED_MESSAGES: '/starred'
+        ALL_STARRED_MESSAGES: '/starred',
+        LEAVE: '/rooms/:roomId/leave'
     },
     ANALYTICS: {
         DEFAULT: '/analytics',

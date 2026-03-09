@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
         STAR_MESSAGE: '/chat/messages/:messageId/star',
         STARRED_MESSAGES: (roomId: string) => `/chat/rooms/${roomId}/starred`,
         ALL_STARRED_MESSAGES: '/chat/starred',
+        LEAVE: (roomId: string) => `/chat/rooms/${roomId}/leave`,
     },
     ANALYTICS: {
         DASHBOARD: '/analytics/dashboard',

@@ -552,7 +552,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   leaveRoom: async (roomId: string) => {
     try {
-      await api.post(`${API_ENDPOINTS.CHAT.ROOMS}/${roomId}/leave`);
+      await api.post(API_ENDPOINTS.CHAT.LEAVE(roomId));
       // Refresh rooms to get the updated participants/leftParticipants state
       await get().fetchRooms();
     } catch (error) {

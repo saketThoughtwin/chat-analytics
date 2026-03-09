@@ -39,6 +39,6 @@ router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ALL_STARRED_ME
 // Legacy endpoint
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.CONVERSATION}`, authMiddleware, asyncHandler(ChatController.getConversation));
 
-router.post("/rooms/:roomId/leave", ChatController.leaveGroup);
+router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.LEAVE}`, authMiddleware, asyncHandler(ChatController.leaveGroup));
 
 export default router;
