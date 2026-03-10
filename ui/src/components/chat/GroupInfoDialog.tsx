@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -30,6 +30,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import Cropper from 'react-easy-crop';
 import { useChatStore } from '../../store/chatStore';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/api';
@@ -67,9 +68,26 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
     const isAdmin = currentUser?.id === room?.groupAdmin;
     const groupAvatarInputRef = useRef<HTMLInputElement>(null);
 
+    // Group avatar cropper state (always upload cropped image)
+    const [avatarImageSrc, setAvatarImageSrc] = useState<string | null>(null);
+    const [avatarCrop, setAvatarCrop] = useState({ x: 0, y: 0 });
+    const [avatarZoom, setAvatarZoom] = useState(1);
+    const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<any>(null);
+    const [avatarCropOpen, setAvatarCropOpen] = useState(false);
+
     useEffect(() => {
         if (room?.name) setNewName(room.name);
     }, [room?.name]);
+
+    useEffect(() => {
+        if (!open) {
+            setAvatarCropOpen(false);
+            setAvatarImageSrc(null);
+            setAvatarCrop({ x: 0, y: 0 });
+            setAvatarZoom(1);
+            setAvatarCroppedAreaPixels(null);
+        }
+    }, [open]);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -131,6 +149,44 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
         }
     };
 
+    const onAvatarCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+        setAvatarCroppedAreaPixels(croppedAreaPixels);
+    }, []);
+
+    const getCroppedImage = async (imageSrc: string, pixelCrop: any): Promise<File> => {
+        const image = new Image();
+        image.src = imageSrc;
+        await new Promise((resolve) => { image.onload = resolve; });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = pixelCrop.width;
+        canvas.height = pixelCrop.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No 2d context");
+
+        ctx.drawImage(
+            image,
+            pixelCrop.x,
+            pixelCrop.y,
+            pixelCrop.width,
+            pixelCrop.height,
+            0,
+            0,
+            pixelCrop.width,
+            pixelCrop.height
+        );
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error("Canvas is empty"));
+                    return;
+                }
+                resolve(new File([blob], "group-avatar.jpg", { type: "image/jpeg" }));
+            }, "image/jpeg");
+        });
+    };
+
     const handleGroupAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -139,12 +195,30 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
             return;
         }
 
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+            setAvatarImageSrc(reader.result?.toString() || null);
+            setAvatarCropOpen(true);
+        });
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const handleUploadCroppedAvatar = async () => {
+        if (!avatarImageSrc || !avatarCroppedAreaPixels) return;
         setSaving(true);
         try {
-            await updateGroupAvatar(roomId, file);
+            const croppedFile = await getCroppedImage(avatarImageSrc, avatarCroppedAreaPixels);
+            await updateGroupAvatar(roomId, croppedFile);
+            setAvatarCropOpen(false);
+            setAvatarImageSrc(null);
+            setAvatarCroppedAreaPixels(null);
+            setAvatarCrop({ x: 0, y: 0 });
+            setAvatarZoom(1);
+        } catch (error) {
+            console.error('Failed to update group avatar', error);
         } finally {
             setSaving(false);
-            e.target.value = '';
         }
     };
 
@@ -371,6 +445,51 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                     </Button>
                     <Button onClick={handleConfirmRemoval} color="error" variant="contained" sx={{ borderRadius: 2, boxShadow: 'none' }}>
                         Remove
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Crop Dialog for Group Avatar */}
+            <Dialog
+                open={avatarCropOpen}
+                onClose={() => { if (!saving) setAvatarCropOpen(false); }}
+                fullWidth
+                maxWidth="xs"
+                PaperProps={{ sx: { borderRadius: 3 } }}
+            >
+                <DialogTitle>Crop group photo</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ position: "relative", width: "100%", height: 320, bgcolor: "black", borderRadius: 2, overflow: "hidden" }}>
+                        {avatarImageSrc && (
+                            <Cropper
+                                image={avatarImageSrc}
+                                crop={avatarCrop}
+                                zoom={avatarZoom}
+                                aspect={1}
+                                cropShape="round"
+                                onCropChange={setAvatarCrop}
+                                onCropComplete={onAvatarCropComplete}
+                                onZoomChange={setAvatarZoom}
+                            />
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        onClick={() => setAvatarCropOpen(false)}
+                        color="inherit"
+                        disabled={saving}
+                        sx={{ borderRadius: 2 }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleUploadCroppedAvatar}
+                        variant="contained"
+                        disabled={saving || !avatarCroppedAreaPixels}
+                        sx={{ borderRadius: 2, boxShadow: 'none', bgcolor: '#00a884', '&:hover': { bgcolor: '#009478' } }}
+                    >
+                        Save
                     </Button>
                 </DialogActions>
             </Dialog>
