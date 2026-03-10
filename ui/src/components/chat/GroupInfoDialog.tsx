@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -29,6 +29,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useChatStore } from '../../store/chatStore';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/api';
@@ -49,7 +50,7 @@ interface GroupInfoDialogProps {
 }
 
 export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDialogProps) {
-    const { rooms, updateRoom } = useChatStore();
+    const { rooms, updateRoom, updateGroupAvatar } = useChatStore();
     const { user: currentUser } = useAuthStore();
     const room = rooms.find((r) => r._id === roomId);
 
@@ -64,6 +65,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
     const [userToRemove, setUserToRemove] = useState<string | null>(null);
 
     const isAdmin = currentUser?.id === room?.groupAdmin;
+    const groupAvatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (room?.name) setNewName(room.name);
@@ -129,6 +131,23 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
         }
     };
 
+    const handleGroupAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            e.target.value = '';
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await updateGroupAvatar(roomId, file);
+        } finally {
+            setSaving(false);
+            e.target.value = '';
+        }
+    };
+
     const handleRemoveUserClick = (userId: string) => {
         setUserToRemove(userId);
         setRemovalConfirmOpen(true);
@@ -165,18 +184,47 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
             <DialogContent sx={{ p: 0 }}>
                 {/* Group Header Area */}
                 <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'rgba(0,0,0,0.02)' }}>
-                    <Avatar
-                        sx={{
-                            width: 80,
-                            height: 80,
-                            margin: '0 auto',
-                            mb: 2,
-                            bgcolor: '#6366f1',
-                            fontSize: '2rem'
-                        }}
-                    >
-                        {room.name?.charAt(0)}
-                    </Avatar>
+                    <Box sx={{ position: 'relative', width: 80, height: 80, margin: '0 auto', mb: 2 }}>
+                        <Avatar
+                            src={room.avatar}
+                            sx={{
+                                width: 80,
+                                height: 80,
+                                bgcolor: '#6366f1',
+                                fontSize: '2rem'
+                            }}
+                        >
+                            {room.name?.charAt(0)}
+                        </Avatar>
+
+                        {isAdmin && (
+                            <>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => groupAvatarInputRef.current?.click()}
+                                    sx={{
+                                        position: 'absolute',
+                                        right: -6,
+                                        bottom: -6,
+                                        bgcolor: '#00a884',
+                                        color: 'white',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                        '&:hover': { bgcolor: '#009478' }
+                                    }}
+                                    disabled={saving}
+                                >
+                                    <PhotoCameraIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                                <input
+                                    ref={groupAvatarInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={handleGroupAvatarChange}
+                                />
+                            </>
+                        )}
+                    </Box>
 
                     {isEditingName ? (
                         <Box display="flex" alignItems="center" justifyContent="center" gap={1}>

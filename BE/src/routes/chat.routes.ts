@@ -14,6 +14,7 @@ router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.GROUP}`, auth
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOMS}`, authMiddleware, asyncHandler(ChatController.getUserRooms));
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.getRoomById));
 router.patch(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.updateRoom));
+router.patch(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_AVATAR}`, authMiddleware, upload.single('file'), asyncHandler(ChatController.updateGroupAvatar));
 router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.deleteRoom));
 
 
@@ -40,5 +41,4 @@ router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ALL_STARRED_ME
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.CONVERSATION}`, authMiddleware, asyncHandler(ChatController.getConversation));
 
 router.post(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.LEAVE}`, authMiddleware, asyncHandler(ChatController.leaveGroup));
-
 export default router;

@@ -774,7 +774,7 @@ export default function MessageWindow() {
         <Box sx={{ position: "relative", mr: 2 }}>
           <Avatar
             alt={isGroup ? activeRoom?.name : otherUser?.name}
-            src={isGroup ? undefined : otherUser?.avatar}
+            src={isGroup ? activeRoom?.avatar : otherUser?.avatar}
             sx={{ width: 44, height: 44, bgcolor: isGroup ? '#6366f1' : undefined }}
           >
             {(isGroup ? activeRoom?.name : otherUser?.name)?.charAt(0)}

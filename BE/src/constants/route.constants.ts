@@ -24,6 +24,7 @@ export const RoutesConstants = {
         ROOMS: '/rooms',
         GROUP: '/rooms/group',
         ROOM_BY_ID: '/rooms/:roomId',
+        ROOM_AVATAR: '/rooms/:roomId/avatar',
         ROOM_BY_ID_UPLOAD: '/rooms/:roomId/upload',
         MESSAGES: '/rooms/:roomId/messages',
         READ_MESSAGES: '/messages/read',

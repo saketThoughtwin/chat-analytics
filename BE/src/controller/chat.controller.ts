@@ -6,6 +6,7 @@ import messageService from "@modules/chat/message.service";
 import messageRepository from "@modules/chat/message.repository";
 import { ApiError } from "@utils/ApiError";
 
+const toPlainRoom = (room: any) => (room && typeof room.toObject === "function" ? room.toObject() : room);
 
 export default class ChatController {
   /**
@@ -521,7 +522,7 @@ export default class ChatController {
         io.to(roomId).emit("receive_message", systemMsg);
         // If the user isn't currently joined to the room socket, still push the room update to their user channel
         // so their room list can update live.
-        io.to(newId.toString()).emit("room_update", updatedRoom);
+        io.to(newId.toString()).emit("room_update", toPlainRoom(updatedRoom));
       }
 
       // Handling Removals
@@ -543,7 +544,42 @@ export default class ChatController {
     }
 
     // Notify participants of the update
-    io.to(roomId).emit("room_update", updatedRoom);
+    io.to(roomId).emit("room_update", toPlainRoom(updatedRoom));
+
+    res.json(updatedRoom);
+  }
+
+  /**
+   * Update group profile picture (admin only)
+   * PATCH /api/chat/rooms/:roomId/avatar
+   */
+  static async updateGroupAvatar(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+
+    if (!req.file?.path) throw new ApiError(400, "File is required");
+    if (req.file.mimetype && !req.file.mimetype.startsWith("image/")) {
+      throw new ApiError(400, "Only image files are allowed");
+    }
+
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+    if (room.type !== "group") throw new ApiError(400, "Not a group chat");
+
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    if (!isParticipant) throw new ApiError(403, "Forbidden");
+
+    const isAdmin = room.groupAdmin === userId;
+    if (!isAdmin) throw new ApiError(403, "Only group admins can update group profile picture");
+
+    const updatedRoom = await roomService.updateRoom(roomId, { avatar: req.file.path });
+    if (!updatedRoom) throw new ApiError(500, "Failed to update group avatar");
+
+    // Notify room members and also user channels (covers users not currently joined to the room socket)
+    const payload = toPlainRoom(updatedRoom);
+    io.to(roomId).emit("room_update", payload);
+    const participantIds = (updatedRoom.participants || []).map((p: any) => (p?._id || p)?.toString?.()).filter(Boolean);
+    participantIds.forEach((id: string) => io.to(id).emit("room_update", payload));
 
     res.json(updatedRoom);
   }
@@ -576,7 +612,7 @@ export default class ChatController {
     if (updatedRoom) {
       // Notify remaining participants
       io.to(roomId).emit("receive_message", systemMsg);
-      io.to(roomId).emit("room_update", updatedRoom);
+      io.to(roomId).emit("room_update", toPlainRoom(updatedRoom));
     }
 
     res.status(200).json({ status: "success", message: "Left group successfully" });
@@ -603,7 +639,7 @@ export default class ChatController {
       // Fetch updated room to get new preview
       const updatedRoom = await roomService.getRoomById(roomId);
       if (updatedRoom) {
-        io.to(roomId).emit("room_update", updatedRoom);
+        io.to(roomId).emit("room_update", toPlainRoom(updatedRoom));
       }
     }
 

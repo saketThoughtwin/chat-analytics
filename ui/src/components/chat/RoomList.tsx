@@ -528,7 +528,7 @@ export default function RoomList() {
                         <Box sx={{ position: "relative" }}>
                           <Avatar
                             alt={isGroup ? room.name : otherUser?.name}
-                            src={isGroup ? undefined : otherUser?.avatar}
+                            src={isGroup ? room.avatar : otherUser?.avatar}
                             sx={{
                               width: 52,
                               height: 52,

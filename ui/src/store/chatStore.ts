@@ -31,6 +31,7 @@ interface Room {
   _id: string;
   type?: 'direct' | 'group';
   name?: string;
+  avatar?: string;
   groupAdmin?: string;
   participants: any[];
   leftParticipants?: string[];
@@ -97,6 +98,7 @@ interface ChatState {
 
   createGroupRoom: (participants: string[], name: string) => Promise<void>;
   updateRoom: (roomId: string, data: Partial<Room>) => Promise<void>;
+  updateGroupAvatar: (roomId: string, file: File) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
 
 
@@ -548,6 +550,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error("Failed to update room", error);
+    }
+  },
+
+  updateGroupAvatar: async (roomId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.patch(API_ENDPOINTS.CHAT.ROOM_AVATAR(roomId), formData, { headers: MULTIPART_HEADERS });
+      const updatedRoom = response.data;
+
+      set((state) => ({
+        rooms: state.rooms.map((r) => (r._id === roomId ? { ...r, ...updatedRoom } : r))
+      }));
+    } catch (error) {
+      console.error("Failed to update group avatar", error);
     }
   },
 

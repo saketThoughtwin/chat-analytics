@@ -4,6 +4,7 @@ export interface IRoom {
     _id: string; // Room ID (deterministic for direct, unique for group)
     type: 'direct' | 'group';
     name?: string; // Group name
+    avatar?: string; // Group profile picture URL
     groupAdmin?: string; // User ID who created the group
     participants: string[]; // Array of user IDs
     leftParticipants?: string[]; // Array of user IDs who left but have history
@@ -30,6 +31,7 @@ const RoomSchema = new Schema<IRoom>(
             index: true
         },
         name: { type: String },
+        avatar: { type: String },
         groupAdmin: { type: String, ref: 'User' },
         participants: {
             type: [String],
