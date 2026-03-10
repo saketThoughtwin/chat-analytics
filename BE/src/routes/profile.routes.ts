@@ -8,6 +8,6 @@ import { upload } from '../services/cloudinary.service';
 const router = Router();
 
 router.get(`${RoutesConstants.AUTH.DEFAULT}${RoutesConstants.AUTH.ME}`, authMiddleware, asyncHandler(ProfileController.me));
-router.put('/', authMiddleware, upload.single('file'), asyncHandler(ProfileController.updateProfile));
+router.put(RoutesConstants.PROFILE.UPDATE, authMiddleware, upload.single('file'), asyncHandler(ProfileController.updateProfile));
 
 export default router;

@@ -14,6 +14,9 @@ export const RoutesConstants = {
         DETAIL: '/:id',
         SEARCH: '/search',
     },
+    PROFILE: {
+        UPDATE: '/profile',
+    },
     HEALTH: '/health',
     NOT_FOUND: '*',
     CHAT: {
