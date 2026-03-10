@@ -21,6 +21,7 @@ import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import Cropper from "react-easy-crop";
 import { useAuthStore } from "../../store/authStore";
 
@@ -34,6 +35,7 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
     const [name, setName] = useState(user?.name || "");
     const [isEditingName, setIsEditingName] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
 
     // Cropper State
     const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -81,6 +83,22 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                 setImageSrc(reader.result?.toString() || null)
             );
             reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append("removeAvatar", "true");
+            await updateProfile(formData);
+            setImageSrc(null);
+        } catch (error) {
+            console.error("Failed to remove avatar", error);
+            showSnackbar("Failed to remove avatar. Please try again.", "error");
+        } finally {
+            setRemoveConfirmOpen(false);
+            setLoading(false);
         }
     };
 
@@ -163,7 +181,7 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
                 {/* Avatar Section */}
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, bgcolor: "white" }}>
-                    <Box sx={{ position: "relative" }}>
+                <Box sx={{ position: "relative" }}>
                         <Avatar
                             src={imageSrc || user?.avatar}
                             sx={{ width: 140, height: 140, mb: 1, fontSize: "4rem", bgcolor: "#6366f1", cursor: "pointer", "&:hover": { opacity: 0.8 } }}
@@ -171,15 +189,36 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                         >
                             {user?.name?.charAt(0)}
                         </Avatar>
-                        <Box
-                            sx={{
-                                position: "absolute",
-                                bottom: 8,
-                                right: 8,
-                                bgcolor: "#00a884",
-                                borderRadius: "50%",
-                                p: 1,
-                                cursor: "pointer",
+	                        {!!user?.avatar && !imageSrc && (
+	                            <Box
+	                                sx={{
+	                                    position: "absolute",
+	                                    bottom: 8,
+	                                    right: 8,
+	                                    bgcolor: "#ef4444",
+	                                    borderRadius: "50%",
+	                                    p: 1,
+	                                    cursor: loading ? "default" : "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+	                                    boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+	                                    opacity: loading ? 0.6 : 1
+	                                }}
+	                                onClick={() => { if (!loading) setRemoveConfirmOpen(true); }}
+	                            >
+	                                <DeleteIcon sx={{ color: "white", fontSize: 20 }} />
+	                            </Box>
+	                        )}
+	                        <Box
+	                            sx={{
+	                                position: "absolute",
+	                                bottom: 8,
+	                                left: 8,
+	                                bgcolor: "#00a884",
+	                                borderRadius: "50%",
+	                                p: 1,
+	                                cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -220,7 +259,7 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
 
                     {/* Name Field */}
                     <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                        Your name
+                        Name
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
                         {isEditingName ? (
@@ -254,7 +293,7 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                     {/* Email Field (Read Only) */}
                     <Box sx={{ mt: 3, mb: 1 }}>
                         <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                            Email address
+                            Email
                         </Typography>
                         <Typography variant="body1" sx={{ mt: 1, color: "text.secondary" }}>
                             {user?.email}
@@ -276,6 +315,27 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                     {loading ? <CircularProgress size={24} color="inherit" /> : "Save"}
                 </Button>
             </DialogActions>
+
+            <Dialog
+                open={removeConfirmOpen}
+                onClose={() => { if (!loading) setRemoveConfirmOpen(false); }}
+                PaperProps={{ sx: { borderRadius: 3 } }}
+            >
+                <DialogTitle>Remove Photo?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary">
+                       Are you sure you want to remove your display profile?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setRemoveConfirmOpen(false)} color="inherit" disabled={loading} sx={{ borderRadius: 2 }}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleRemoveAvatar} color="error" variant="contained" disabled={loading} sx={{ borderRadius: 2, boxShadow: "none" }}>
+                        Remove
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Snackbar
                 open={snackbarOpen}

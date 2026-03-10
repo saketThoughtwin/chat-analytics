@@ -51,7 +51,7 @@ interface GroupInfoDialogProps {
 }
 
 export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDialogProps) {
-    const { rooms, updateRoom, updateGroupAvatar } = useChatStore();
+    const { rooms, updateRoom, updateGroupAvatar, removeGroupAvatar } = useChatStore();
     const { user: currentUser } = useAuthStore();
     const room = rooms.find((r) => r._id === roomId);
 
@@ -64,6 +64,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
     const [saving, setSaving] = useState(false);
     const [removalConfirmOpen, setRemovalConfirmOpen] = useState(false);
     const [userToRemove, setUserToRemove] = useState<string | null>(null);
+    const [avatarRemoveConfirmOpen, setAvatarRemoveConfirmOpen] = useState(false);
 
     const isAdmin = currentUser?.id === room?.groupAdmin;
     const groupAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -81,6 +82,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
 
     useEffect(() => {
         if (!open) {
+            setAvatarRemoveConfirmOpen(false);
             setAvatarCropOpen(false);
             setAvatarImageSrc(null);
             setAvatarCrop({ x: 0, y: 0 });
@@ -278,7 +280,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                                     onClick={() => groupAvatarInputRef.current?.click()}
                                     sx={{
                                         position: 'absolute',
-                                        right: -6,
+                                        left: -6,
                                         bottom: -6,
                                         bgcolor: '#00a884',
                                         color: 'white',
@@ -289,6 +291,27 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                                 >
                                     <PhotoCameraIcon sx={{ fontSize: 18 }} />
                                 </IconButton>
+                                {!!room.avatar && (
+                                    <IconButton
+                                        size="small"
+                                        onClick={async () => {
+                                            if (saving) return;
+                                            setAvatarRemoveConfirmOpen(true);
+                                        }}
+                                        sx={{
+                                            position: 'absolute',
+                                            right: -6,
+                                            bottom: -6,
+                                            bgcolor: '#ef4444',
+                                            color: 'white',
+                                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                            '&:hover': { bgcolor: '#dc2626' }
+                                        }}
+                                        disabled={saving}
+                                    >
+                                        <DeleteIcon sx={{ fontSize: 18 }} />
+                                    </IconButton>
+                                )}
                                 <input
                                     ref={groupAvatarInputRef}
                                     type="file"
@@ -444,6 +467,42 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                         Cancel
                     </Button>
                     <Button onClick={handleConfirmRemoval} color="error" variant="contained" sx={{ borderRadius: 2, boxShadow: 'none' }}>
+                        Remove
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={avatarRemoveConfirmOpen}
+                onClose={() => { if (!saving) setAvatarRemoveConfirmOpen(false); }}
+                PaperProps={{ sx: { borderRadius: 3 } }}
+            >
+                <DialogTitle>Remove group photo?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        This will remove the group profile picture.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setAvatarRemoveConfirmOpen(false)} color="inherit" disabled={saving} sx={{ borderRadius: 2 }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={async () => {
+                            if (saving) return;
+                            setSaving(true);
+                            try {
+                                await removeGroupAvatar(roomId);
+                            } finally {
+                                setSaving(false);
+                                setAvatarRemoveConfirmOpen(false);
+                            }
+                        }}
+                        color="error"
+                        variant="contained"
+                        disabled={saving}
+                        sx={{ borderRadius: 2, boxShadow: 'none' }}
+                    >
                         Remove
                     </Button>
                 </DialogActions>

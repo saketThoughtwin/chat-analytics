@@ -15,10 +15,12 @@ export default class ProfileController {
 
   static async updateProfile(req: AuthRequest, res: Response) {
     const { name } = req.body;
+    const removeAvatar = req.body?.removeAvatar === 'true' || req.body?.removeAvatar === true;
     let updateData: any = {};
 
     if (name) updateData.name = name;
     if (req.file?.path) updateData.avatar = req.file.path;
+    if (removeAvatar) updateData.avatar = "";
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ success: false, message: "No update provided" });

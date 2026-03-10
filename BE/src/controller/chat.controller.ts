@@ -584,6 +584,35 @@ export default class ChatController {
     res.json(updatedRoom);
   }
 
+  /**
+   * Remove group profile picture (admin only)
+   * DELETE /api/chat/rooms/:roomId/avatar
+   */
+  static async removeGroupAvatar(req: AuthRequest, res: Response) {
+    const { userId } = req;
+    const { roomId } = req.params;
+
+    const room = await roomService.getRoomById(roomId);
+    if (!room) throw new ApiError(404, "Room not found");
+    if (room.type !== "group") throw new ApiError(400, "Not a group chat");
+
+    const isParticipant = room.participants.some((p: any) => (p._id || p).toString() === userId);
+    if (!isParticipant) throw new ApiError(403, "Forbidden");
+
+    const isAdmin = room.groupAdmin === userId;
+    if (!isAdmin) throw new ApiError(403, "Only group admins can remove group profile picture");
+
+    const updatedRoom = await roomService.updateRoom(roomId, { avatar: "" });
+    if (!updatedRoom) throw new ApiError(500, "Failed to remove group avatar");
+
+    const payload = toPlainRoom(updatedRoom);
+    io.to(roomId).emit("room_update", payload);
+    const participantIds = (updatedRoom.participants || []).map((p: any) => (p?._id || p)?.toString?.()).filter(Boolean);
+    participantIds.forEach((id: string) => io.to(id).emit("room_update", payload));
+
+    res.json(updatedRoom);
+  }
+
   static async leaveGroup(req: AuthRequest, res: Response) {
     const { userId } = req;
     const { roomId } = req.params;

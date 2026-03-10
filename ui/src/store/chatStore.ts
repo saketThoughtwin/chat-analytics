@@ -99,6 +99,7 @@ interface ChatState {
   createGroupRoom: (participants: string[], name: string) => Promise<void>;
   updateRoom: (roomId: string, data: Partial<Room>) => Promise<void>;
   updateGroupAvatar: (roomId: string, file: File) => Promise<void>;
+  removeGroupAvatar: (roomId: string) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
 
 
@@ -565,6 +566,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error("Failed to update group avatar", error);
+    }
+  },
+
+  removeGroupAvatar: async (roomId) => {
+    try {
+      const response = await api.delete(API_ENDPOINTS.CHAT.ROOM_AVATAR(roomId));
+      const updatedRoom = response.data;
+      set((state) => ({
+        rooms: state.rooms.map((r) => (r._id === roomId ? { ...r, ...updatedRoom } : r))
+      }));
+    } catch (error) {
+      console.error("Failed to remove group avatar", error);
     }
   },
 

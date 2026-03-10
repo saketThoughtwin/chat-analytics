@@ -31,7 +31,7 @@ const RoomSchema = new Schema<IRoom>(
             index: true
         },
         name: { type: String },
-        avatar: { type: String },
+        avatar: { type: String, default: "" },
         groupAdmin: { type: String, ref: 'User' },
         participants: {
             type: [String],

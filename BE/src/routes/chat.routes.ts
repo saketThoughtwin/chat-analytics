@@ -15,6 +15,7 @@ router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOMS}`, authM
 router.get(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.getRoomById));
 router.patch(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.updateRoom));
 router.patch(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_AVATAR}`, authMiddleware, upload.single('file'), asyncHandler(ChatController.updateGroupAvatar));
+router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_AVATAR}`, authMiddleware, asyncHandler(ChatController.removeGroupAvatar));
 router.delete(`${RoutesConstants.CHAT.DEFAULT}${RoutesConstants.CHAT.ROOM_BY_ID}`, authMiddleware, asyncHandler(ChatController.deleteRoom));
 
 
