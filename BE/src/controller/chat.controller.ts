@@ -474,13 +474,29 @@ export default class ChatController {
       throw new ApiError(403, "Only group admins can update group settings or members");
     }
 
+    const updateData: any = {};
+    if (typeof name === 'string') updateData.name = name;
+    if (Array.isArray(participants)) {
+      // Normalize IDs and ensure uniqueness
+      const normalizedParticipants = Array.from(
+        new Set(participants.map((id: any) => id?.toString()).filter(Boolean))
+      );
+
+      updateData.participants = normalizedParticipants;
+
+      // If someone left previously and is re-added, remove them from leftParticipants.
+      // Otherwise they will still be blocked from sending messages and excluded from UI counts.
+      const left = (room.leftParticipants || []).map((id: any) => id?.toString()).filter(Boolean);
+      updateData.leftParticipants = left.filter((id: string) => !normalizedParticipants.includes(id));
+    }
 
     const oldParticipants = room.participants.map((p: any) => (p._id || p).toString());
-    const updatedRoom = await roomService.updateRoom(roomId, { name, participants });
+    const updatedRoom = await roomService.updateRoom(roomId, updateData);
 
     if (updatedRoom && participants) {
-      const newParticipantIds = participants.filter((id: string) => !oldParticipants.includes(id.toString()));
-      const removedParticipantIds = oldParticipants.filter((id: string) => !participants.includes(id));
+      const normalizedNew = Array.isArray(updateData.participants) ? updateData.participants : [];
+      const newParticipantIds = normalizedNew.filter((id: string) => !oldParticipants.includes(id));
+      const removedParticipantIds = oldParticipants.filter((id: string) => !normalizedNew.includes(id));
 
       const adminName = (room.participants.find((p: any) => (p._id || p).toString() === userId) as any)?.name || 'Admin';
 
