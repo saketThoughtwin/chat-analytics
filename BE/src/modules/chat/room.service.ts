@@ -138,11 +138,11 @@ class RoomService {
             delete (room.unreadCounts as any)[userId];
         }
 
-        // If leaver was admin, assign a new one if participants remain
+        // If leaver was admin, do not auto-assign a new admin.
+        // Group can exist without an admin.
         let updatedAdmin = room.groupAdmin;
-        if (room.groupAdmin?.toString() === userId && updatedParticipants.length > 0) {
-            const firstParticipant = updatedParticipants[0];
-            updatedAdmin = (typeof firstParticipant === 'object' ? (firstParticipant as any)._id : firstParticipant).toString();
+        if (room.groupAdmin?.toString() === userId) {
+            updatedAdmin = "";
         }
 
         return roomRepository.updateById(roomId, {

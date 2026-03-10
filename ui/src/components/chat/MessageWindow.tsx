@@ -267,6 +267,8 @@ export default function MessageWindow() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [headerAnchorEl, setHeaderAnchorEl] = useState<null | HTMLElement>(null);
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaveTargetRoomId, setLeaveTargetRoomId] = useState<string | null>(null);
 
   const {
     activeRoomId,
@@ -862,23 +864,55 @@ export default function MessageWindow() {
                     }} sx={{ color: 'error.main' }}>
                       Delete Chat
                     </MenuItem>
-                  ) : (
-                    <MenuItem onClick={async () => {
-                      if (activeRoomId) {
-                        await leaveRoom(activeRoomId);
-                        setHeaderAnchorEl(null);
-                        router.push('/');
-                      }
-                    }} sx={{ color: 'error.main' }}>
-                      Leave Group
-                    </MenuItem>
-                  )}
-                </Menu>
+	                  ) : (
+	                    <MenuItem onClick={async () => {
+	                      if (activeRoomId) {
+	                        setLeaveTargetRoomId(activeRoomId);
+	                        setLeaveConfirmOpen(true);
+	                        setHeaderAnchorEl(null);
+	                      }
+	                    }} sx={{ color: 'error.main' }}>
+	                      Leave Group
+	                    </MenuItem>
+	                  )}
+	                </Menu>
               </>
             );
-          })()}
-        </Box>
-      </Box>
+	          })()}
+	        </Box>
+	      </Box>
+
+      <Dialog
+        open={leaveConfirmOpen}
+        onClose={() => setLeaveConfirmOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>Leave group?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to leave this group?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setLeaveConfirmOpen(false)} color="inherit" sx={{ borderRadius: 2 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!leaveTargetRoomId) return;
+              await leaveRoom(leaveTargetRoomId);
+              setLeaveConfirmOpen(false);
+              setLeaveTargetRoomId(null);
+              router.push("/");
+            }}
+            color="error"
+            variant="contained"
+            sx={{ borderRadius: 2, boxShadow: "none" }}
+          >
+            Leave
+          </Button>
+        </DialogActions>
+      </Dialog>
 
 
       {/* Messages */}
