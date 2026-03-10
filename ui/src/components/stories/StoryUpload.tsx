@@ -8,6 +8,8 @@ import {
     Box,
     Typography,
     IconButton,
+    Snackbar,
+    Alert,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
@@ -24,6 +26,8 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { postStory } = useChatStore();
 
@@ -36,7 +40,8 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
                 video.onloadedmetadata = () => {
                     window.URL.revokeObjectURL(video.src);
                     if (video.duration > 15) {
-                        alert("Videos must be 15 seconds or shorter.");
+                        setSnackbarMessage("Videos must be 15 seconds or shorter.");
+                        setSnackbarOpen(true);
                         if (fileInputRef.current) fileInputRef.current.value = "";
                         return;
                     }
@@ -160,6 +165,17 @@ export default function StoryUpload({ open, onClose }: StoryUploadProps) {
                     Post Story
                 </Button>
             </DialogActions>
+
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={4000}
+                onClose={() => setSnackbarOpen(false)}
+                anchorOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+                <Alert onClose={() => setSnackbarOpen(false)} severity="error" sx={{ width: "100%" }}>
+                    {snackbarMessage}
+                </Alert>
+            </Snackbar>
         </Dialog>
     );
 }

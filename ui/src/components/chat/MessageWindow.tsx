@@ -20,6 +20,8 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
@@ -299,6 +301,10 @@ export default function MessageWindow() {
   const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(
     null,
   );
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -383,7 +389,8 @@ export default function MessageWindow() {
       setIsCameraOpen(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
-      alert("Could not access camera. Please check permissions.");
+      setSnackbarMessage("Could not access camera. Please check permissions.");
+      setSnackbarOpen(true);
     }
   };
 
@@ -500,7 +507,8 @@ export default function MessageWindow() {
       }, 1000);
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      alert("Could not access microphone. Please check permissions.");
+      setSnackbarMessage("Could not access microphone. Please check permissions.");
+      setSnackbarOpen(true);
     }
   };
 
@@ -1681,6 +1689,17 @@ export default function MessageWindow() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="error" sx={{ width: "100%" }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </Box >
   );
 }

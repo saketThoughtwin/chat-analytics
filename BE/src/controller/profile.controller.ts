@@ -9,6 +9,32 @@ export default class ProfileController {
       id: user?._id,
       name: user?.name,
       email: user?.email,
+      avatar: user?.avatar,
+    });
+  }
+
+  static async updateProfile(req: AuthRequest, res: Response) {
+    const { name } = req.body;
+    let updateData: any = {};
+
+    if (name) updateData.name = name;
+    if (req.file?.path) updateData.avatar = req.file.path;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, message: "No update provided" });
+    }
+
+    const user = await userRepository.updateById(req.userId!, updateData);
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: user?._id,
+        name: user?.name,
+        email: user?.email,
+        avatar: user?.avatar,
+      }
     });
   }
 }

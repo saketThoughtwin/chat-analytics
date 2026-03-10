@@ -40,6 +40,7 @@ import { useAuthStore } from "../../store/authStore";
 import CreateChatDialog from "./CreateChatDialog";
 import CreateGroupDialog from "./CreateGroupDialog";
 import StoriesSection from "../stories/StoriesSection";
+import ProfileDialog from "./ProfileDialog";
 
 import Spinner from "../ui/Spinner";
 
@@ -114,6 +115,10 @@ export default function RoomList() {
 
   // Success Snackbar State
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  // Profile Dialog State
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   // Header Menu State
   const [headerMenuAnchor, setHeaderMenuAnchor] = useState<null | HTMLElement>(
@@ -135,6 +140,11 @@ export default function RoomList() {
 
   const handleHeaderMenuClose = () => {
     setHeaderMenuAnchor(null);
+  };
+
+  const handleProfileClick = () => {
+    handleHeaderMenuClose();
+    setProfileDialogOpen(true);
   };
 
   const handleStarredMessagesClick = async () => {
@@ -189,6 +199,7 @@ export default function RoomList() {
   const handleDeleteConfirm = async () => {
     if (roomToDelete) {
       await deleteRoom(roomToDelete);
+      setSnackbarMessage("Chat deleted successfully.");
       setSnackbarOpen(true);
     }
     setDeleteDialogOpen(false);
@@ -324,6 +335,14 @@ export default function RoomList() {
               sx: { borderRadius: 2, minWidth: 130, mt: 1, },
             }}
           >
+            <MenuItem onClick={handleProfileClick}>
+              <Avatar src={currentUser?.avatar} sx={{ width: 20, height: 20, mr: 1.5, bgcolor: "#6366f1" }}>
+                {currentUser?.name?.charAt(0)}
+              </Avatar>
+              <Typography sx={{ fontSize: "1rem" }}>
+                Profile
+              </Typography>
+            </MenuItem>
             <MenuItem onClick={handleStarredMessagesClick}>
               <StarIcon fontSize="small" sx={{ mr: 1.5, color: "#fbbf24" }} />
               <Typography sx={{ fontSize: "1rem" }}>
@@ -635,6 +654,8 @@ export default function RoomList() {
         )}
       </Box>
 
+      <ProfileDialog open={profileDialogOpen} onClose={() => setProfileDialogOpen(false)} />
+
       {/* Deletion Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
@@ -852,6 +873,17 @@ export default function RoomList() {
         open={createGroupDialogOpen}
         onClose={() => setCreateGroupDialogOpen(false)}
       />
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: "100%" }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

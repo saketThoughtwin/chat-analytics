@@ -53,6 +53,7 @@ class UserController {
         id: user._id,
         name: user.name,
         email: user.email,
+        avatar: user.avatar,
       },
       message: "User registered and logged in successfully"
     });
@@ -77,6 +78,7 @@ class UserController {
         id: user._id,
         name: user.name,
         email: user.email,
+        avatar: user.avatar,
       },
       message: "Login Successfull"
     });

@@ -4,10 +4,12 @@ export interface IUser {
   name: string;
   email: string;
   password: string;
+  avatar?: string;
 }
 const UserSchema = new Schema<IUser>({
-      _id: { type: String, required: true },
- name: {
+  _id: { type: String, required: true },
+  avatar: { type: String, default: "" },
+  name: {
     type: String,
     required: true,
     trim: true,
@@ -21,15 +23,15 @@ const UserSchema = new Schema<IUser>({
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Invalid email format']
   },
- password: {
-  type: String,
-  required: true,
-  minlength: 6,
-  validate: {
-    validator: (v: string) => /^(?=.*[A-Z]).{6,}$/.test(v),
-    message: 'Password must be at least 6 characters long and contain at least 1 uppercase letter'
+  password: {
+    type: String,
+    required: true,
+    minlength: 6,
+    validate: {
+      validator: (v: string) => /^(?=.*[A-Z]).{6,}$/.test(v),
+      message: 'Password must be at least 6 characters long and contain at least 1 uppercase letter'
+    }
   }
-}
 
 }, { timestamps: true });
-export default model<IUser>('User',UserSchema);
+export default model<IUser>('User', UserSchema);

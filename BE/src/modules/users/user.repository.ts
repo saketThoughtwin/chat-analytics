@@ -15,5 +15,8 @@ class UserRepository {
     async count() {
         return userModel.countDocuments();
     }
+    async updateById(id: string, updateData: Partial<IUser>) {
+        return userModel.findByIdAndUpdate(id, updateData, { new: true });
+    }
 }
 export default new UserRepository();

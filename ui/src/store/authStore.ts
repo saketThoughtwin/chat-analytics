@@ -22,6 +22,7 @@ interface AuthState {
     verifyOTP: (otp: string) => Promise<void>;
     tempSignupData: any;
     setTempSignupData: (data: any) => void;
+    updateProfile: (formData: FormData) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -56,6 +57,12 @@ export const useAuthStore = create<AuthState>()(
             },
             tempSignupData: null,
             setTempSignupData: (data: any) => set({ tempSignupData: data }),
+            updateProfile: async (formData: FormData) => {
+                const response = await api.put('/profile', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                set({ user: response.data.user });
+            },
         }),
         {
             name: 'auth-storage',
