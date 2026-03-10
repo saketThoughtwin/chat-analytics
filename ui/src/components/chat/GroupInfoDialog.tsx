@@ -205,7 +205,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                         </Box>
                     )}
                     <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        Group • {room.participants.filter((p: any) => !room.leftParticipants?.includes((p._id || p).toString())).length} members
+                        Group • {room.participants.length} members
                     </Typography>
                 </Box>
 
@@ -266,7 +266,6 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                     ) : (
                         <List>
                             {room.participants
-                                .filter((p: any) => !room.leftParticipants?.includes((p._id || p).toString()))
                                 .map((p: any) => {
                                     const pId = (p._id || p).toString();
                                     const isMemberMe = pId === currentUser?.id;

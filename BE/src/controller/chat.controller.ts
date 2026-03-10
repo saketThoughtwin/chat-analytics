@@ -144,7 +144,9 @@ export default class ChatController {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
-    if (hasLeft) {
+    // If a user is re-added but still present in leftParticipants (stale state),
+    // treat "participants" as the source of truth.
+    if (hasLeft && !isParticipant) {
       throw new ApiError(403, "You have left this group and cannot send messages");
     }
 
@@ -220,7 +222,9 @@ export default class ChatController {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
-    if (hasLeft) {
+    // If a user is re-added but still present in leftParticipants (stale state),
+    // treat "participants" as the source of truth.
+    if (hasLeft && !isParticipant) {
       throw new ApiError(403, "You have left this group and cannot send messages");
     }
 
@@ -515,6 +519,9 @@ export default class ChatController {
         });
 
         io.to(roomId).emit("receive_message", systemMsg);
+        // If the user isn't currently joined to the room socket, still push the room update to their user channel
+        // so their room list can update live.
+        io.to(newId.toString()).emit("room_update", updatedRoom);
       }
 
       // Handling Removals

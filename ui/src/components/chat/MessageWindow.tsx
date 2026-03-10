@@ -812,7 +812,7 @@ export default function MessageWindow() {
             </Typography>
           ) : isGroup ? (
             <Typography variant="caption" color="text.secondary">
-              {activeRoom?.participants.filter((p: any) => !activeRoom.leftParticipants?.includes((p._id || p).toString())).length} members{activeCount > 0 ? `, ${activeCount} online` : ""}
+              {activeRoom?.participants.length || 0} members{activeCount > 0 ? `, ${activeCount} online` : ""}
             </Typography>
           ) : isOnline ? (
             <Typography
@@ -832,7 +832,9 @@ export default function MessageWindow() {
 
         <Box sx={{ ml: 'auto' }}>
           {isGroup && (() => {
-            const hasLeft = activeRoom?.leftParticipants?.includes(currentUser?.id || '');
+            const currentId = currentUser?.id || '';
+            const isParticipant = !!activeRoom?.participants?.some((p: any) => (p?._id || p)?.toString?.() === currentId);
+            const hasLeft = !!activeRoom?.leftParticipants?.includes(currentId) && !isParticipant;
             return (
               <>
                 <IconButton onClick={(e) => setHeaderAnchorEl(e.currentTarget)}>
@@ -1305,7 +1307,9 @@ export default function MessageWindow() {
       {/* Input */}
       {(() => {
         const activeRoom = rooms.find(r => r._id === activeRoomId);
-        const hasLeft = activeRoom?.leftParticipants?.includes(currentUser?.id || '');
+        const currentId = currentUser?.id || '';
+        const isParticipant = !!activeRoom?.participants?.some((p: any) => (p?._id || p)?.toString?.() === currentId);
+        const hasLeft = !!activeRoom?.leftParticipants?.includes(currentId) && !isParticipant;
 
         if (hasLeft) {
           return (

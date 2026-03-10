@@ -880,11 +880,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on("room_update", (updatedRoom: Room) => {
+      const exists = get().rooms.some((r) => r._id === updatedRoom._id);
+
       set((state) => ({
-        rooms: state.rooms.map((r) =>
-          r._id === updatedRoom._id ? { ...r, ...updatedRoom } : r
-        )
+        rooms: exists
+          ? state.rooms.map((r) => (r._id === updatedRoom._id ? { ...r, ...updatedRoom } : r))
+          : [updatedRoom, ...state.rooms]
       }));
+
+      // If this is a newly-added room, join it so future group messages arrive.
+      if (!exists) {
+        socket.emit("join_room", updatedRoom._id);
+      }
     });
 
     socket.on("story_viewed", ({ storyId, viewerId }) => {
@@ -1053,4 +1060,3 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 }));
-
