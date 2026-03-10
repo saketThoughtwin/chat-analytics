@@ -301,7 +301,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const senderId = currentUser?.id || "me";
 
     const isVideo = file.type.startsWith('video');
-    const type = isVideo ? 'video' : 'image';
+    const isAudio = file.type.startsWith('audio');
+    const type = isVideo ? 'video' : isAudio ? 'audio' : 'image';
 
     // Create a local preview URL
     const localUrl = URL.createObjectURL(file);
