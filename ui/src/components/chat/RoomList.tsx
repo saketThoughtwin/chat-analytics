@@ -43,6 +43,7 @@ import StoriesSection from "../stories/StoriesSection";
 import ProfileDialog from "./ProfileDialog";
 
 import Spinner from "../ui/Spinner";
+import { formatSystemText } from "../../lib/systemMessage";
 
 // Utility function to get relative time
 const getRelativeTime = (dateString: string) => {
@@ -610,11 +611,11 @@ export default function RoomList() {
                                   This message was deleted
                                 </span>
                               ) : (room as any).lastMessagePreview ? (
-                                (room as any).lastMessagePreview
+                                formatSystemText((room as any).lastMessagePreview, currentUser?.name)
                               ) : room.lastMessage?.type === "audio" ? (
                                 "🎤 Voice message"
                               ) : (
-                                room.lastMessage?.message || "No messages yet"
+                                formatSystemText(room.lastMessage?.message || "No messages yet", currentUser?.name)
                               )}
                             </Typography>
                             {(room.unreadCount ?? 0) > 0 && (

@@ -8,6 +8,29 @@ import { ApiError } from "@utils/ApiError";
 
 const toPlainRoom = (room: any) => (room && typeof room.toObject === "function" ? room.toObject() : room);
 
+const createSystemMessageAndBumpRoom = async ({
+  roomId,
+  text,
+  bumpedByUserId,
+}: {
+  roomId: string;
+  text: string;
+  bumpedByUserId: string;
+}) => {
+  const systemMsg = await messageRepository.create({
+    sender: undefined,
+    roomId,
+    message: text,
+    type: "system",
+    read: true,
+    deleted: false,
+  });
+
+  await roomService.updateRoomLastMessage(roomId, systemMsg._id.toString(), text, bumpedByUserId);
+
+  return systemMsg;
+};
+
 export default class ChatController {
   /**
    * Create or get a direct chat room between two users
@@ -46,7 +69,48 @@ export default class ChatController {
       : [...participants, userId!];
 
     const room = await roomService.createGroupRoom(allParticipants, name, userId!);
-    res.status(201).json(room);
+
+    // Populate room with participant details for room_update payloads
+    const populatedRoom = await roomService.getRoomById(room._id);
+    if (!populatedRoom) throw new ApiError(500, "Failed to load created room");
+
+    const creator =
+      populatedRoom.participants.find((p: any) => (p?._id || p)?.toString?.() === userId) || null;
+    const creatorName = (creator as any)?.name || "Admin";
+
+    // WhatsApp-like system messages
+    await createSystemMessageAndBumpRoom({
+      roomId: room._id,
+      text: `${creatorName} created group "${name}"`,
+      bumpedByUserId: userId!,
+    });
+
+    for (const participant of populatedRoom.participants) {
+      const participantId = ((participant as any)?._id || participant)?.toString?.();
+      if (!participantId || participantId === userId) continue;
+      const participantName = (participant as any)?.name || "A user";
+
+      await createSystemMessageAndBumpRoom({
+        roomId: room._id,
+        text: `${creatorName} added ${participantName}`,
+        bumpedByUserId: userId!,
+      });
+    }
+
+    // Fetch latest room state (includes lastMessage updates)
+    const latestRoom = await roomService.getRoomById(room._id);
+    const payload = toPlainRoom(latestRoom || populatedRoom);
+
+    // Push room to all participants instantly (no refresh)
+    const participantIds = (payload.participants || [])
+      .map((p: any) => (p?._id || p)?.toString?.())
+      .filter(Boolean);
+    participantIds.forEach((id: string) => io.to(id).emit("room_update", payload));
+
+    // Also emit to the room channel (for clients that joined early)
+    io.to(room._id).emit("room_update", payload);
+
+    res.status(201).json(payload);
   }
 
 
@@ -510,19 +574,17 @@ export default class ChatController {
         const newUser = updatedRoom.participants.find((p: any) => (p._id || p).toString() === newId.toString());
         const newUserName = typeof newUser === 'object' ? (newUser as any).name : 'A user';
 
-        const systemMsg = await messageRepository.create({
-          sender: undefined,
+        const systemMsg = await createSystemMessageAndBumpRoom({
           roomId,
-          message: `${adminName} added ${newUserName}`,
-          type: 'system',
-          read: true,
-          deleted: false
+          text: `${adminName} added ${newUserName}`,
+          bumpedByUserId: userId!,
         });
 
         io.to(roomId).emit("receive_message", systemMsg);
-        // If the user isn't currently joined to the room socket, still push the room update to their user channel
-        // so their room list can update live.
-        io.to(newId.toString()).emit("room_update", toPlainRoom(updatedRoom));
+
+        // Push room update to the newly-added user's channel so their room list updates live
+        const latestRoomForNewUser = await roomService.getRoomById(roomId);
+        io.to(newId.toString()).emit("room_update", toPlainRoom(latestRoomForNewUser || updatedRoom));
       }
 
       // Handling Removals
@@ -530,21 +592,19 @@ export default class ChatController {
         const removedUser = room.participants.find((p: any) => (p._id || p).toString() === removedId);
         const removedUserName = typeof removedUser === 'object' ? (removedUser as any).name : 'A user';
 
-        const systemMsg = await messageRepository.create({
-          sender: undefined,
+        const systemMsg = await createSystemMessageAndBumpRoom({
           roomId,
-          message: `${adminName} removed ${removedUserName}`,
-          type: 'system',
-          read: true,
-          deleted: false
+          text: `${adminName} removed ${removedUserName}`,
+          bumpedByUserId: userId!,
         });
 
         io.to(roomId).emit("receive_message", systemMsg);
       }
     }
 
-    // Notify participants of the update
-    io.to(roomId).emit("room_update", toPlainRoom(updatedRoom));
+    // Notify participants of the update (ensure lastMessage is fresh if system messages were created)
+    const latestRoom = await roomService.getRoomById(roomId);
+    io.to(roomId).emit("room_update", toPlainRoom(latestRoom || updatedRoom));
 
     res.json(updatedRoom);
   }
@@ -628,20 +688,17 @@ export default class ChatController {
     const updatedRoom = await roomService.leaveGroup(roomId, userId!);
 
     // Create system message
-    const systemMsg = await messageRepository.create({
-      sender: undefined,
-
+    const systemMsg = await createSystemMessageAndBumpRoom({
       roomId,
-      message: `${(user as any).name || 'A user'} left`,
-      type: 'system',
-      read: true,
-      deleted: false
+      text: `${(user as any).name || 'A user'} left`,
+      bumpedByUserId: userId!,
     });
 
     if (updatedRoom) {
       // Notify remaining participants
       io.to(roomId).emit("receive_message", systemMsg);
-      io.to(roomId).emit("room_update", toPlainRoom(updatedRoom));
+      const latestRoom = await roomService.getRoomById(roomId);
+      io.to(roomId).emit("room_update", toPlainRoom(latestRoom || updatedRoom));
     }
 
     res.status(200).json({ status: "success", message: "Left group successfully" });

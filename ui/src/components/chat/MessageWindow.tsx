@@ -51,6 +51,7 @@ import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { Slider } from "@mui/material";
 import GroupInfoDialog from "./GroupInfoDialog";
 import Spinner from "../ui/Spinner"; // Added Spinner import
+import { formatSystemText } from "../../lib/systemMessage";
 
 // Custom Audio Player Component for stable UI
 const CustomAudioPlayer = ({ src, isMe }: { src: string; isMe: boolean }) => {
@@ -947,24 +948,6 @@ export default function MessageWindow() {
               const showDateSeparator = dateLabel !== lastShownDate;
               lastShownDate = dateLabel;
 
-              if (msg.type === 'system') {
-                return (
-                  <Box key={msg._id} sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
-                    <Paper sx={{
-                      px: 2,
-                      py: 0.5,
-                      bgcolor: 'rgba(0,0,0,0.05)',
-                      borderRadius: 2,
-                      boxShadow: 'none'
-                    }}>
-                      <Typography variant="caption" color="textSecondary">
-                        {msg.message}
-                      </Typography>
-                    </Paper>
-                  </Box>
-                );
-              }
-
               return (
                 <React.Fragment key={msg._id}>
 
@@ -991,62 +974,83 @@ export default function MessageWindow() {
                       </Paper>
                     </Box>
                   )}
-                  {msg._id === activeRoomFirstUnreadId && activeRoomUnreadCount > 0 && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        my: 3,
-                        position: "relative",
-                        "&::before": {
-                          content: '""',
-                          position: "absolute",
-                          top: "50%",
-                          left: 0,
-                          right: 0,
-                          height: "1px",
-                          bgcolor: "rgba(99, 102, 241, 0.15)",
-                          zIndex: 0,
-                        },
-                      }}
-                    >
+
+                  {msg.type === "system" ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", my: 1 }}>
                       <Paper
-                        elevation={0}
                         sx={{
-                          bgcolor: "#f5f7ff",
                           px: 2,
-                          py: 0.8,
-                          borderRadius: "20px",
-                          border: "1px solid rgba(99, 102, 241, 0.2)",
-                          zIndex: 1,
-                          boxShadow: "0 2px 10px rgba(99, 102, 241, 0.05)",
+                          py: 0.5,
+                          bgcolor: "rgba(0,0,0,0.05)",
+                          borderRadius: 2,
+                          boxShadow: "none",
                         }}
                       >
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "#6366f1",
-                            fontWeight: "700",
-                            textTransform: "uppercase",
-                            letterSpacing: "1px",
-                            fontSize: "0.75rem",
-                          }}
-                        >
-                          {activeRoomUnreadCount} New Message{activeRoomUnreadCount > 1 ? "s" : ""}
+                        <Typography variant="caption" color="textSecondary">
+                          {formatSystemText(msg.message, currentUser?.name)}
                         </Typography>
                       </Paper>
                     </Box>
-                  )}
-                  <ListItem
-                    sx={{
-                      flexDirection: "column",
-                      alignItems: isMe ? "flex-end" : "flex-start",
-                      p: 0,
-                      width: "100%",
-                      position: "relative",
-                      "&:hover .message-actions": { opacity: 1 },
-                    }}
-                  >
+                  ) : (
+                    <>
+                      {msg._id === activeRoomFirstUnreadId &&
+                        activeRoomUnreadCount > 0 && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "center",
+                              my: 3,
+                              position: "relative",
+                              "&::before": {
+                                content: '""',
+                                position: "absolute",
+                                top: "50%",
+                                left: 0,
+                                right: 0,
+                                height: "1px",
+                                bgcolor: "rgba(99, 102, 241, 0.15)",
+                                zIndex: 0,
+                              },
+                            }}
+                          >
+                            <Paper
+                              elevation={0}
+                              sx={{
+                                bgcolor: "#f5f7ff",
+                                px: 2,
+                                py: 0.8,
+                                borderRadius: "20px",
+                                border: "1px solid rgba(99, 102, 241, 0.2)",
+                                zIndex: 1,
+                                boxShadow: "0 2px 10px rgba(99, 102, 241, 0.05)",
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "#6366f1",
+                                  fontWeight: "700",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "1px",
+                                  fontSize: "0.75rem",
+                                }}
+                              >
+                                {activeRoomUnreadCount} New Message
+                                {activeRoomUnreadCount > 1 ? "s" : ""}
+                              </Typography>
+                            </Paper>
+                          </Box>
+                        )}
+                      <ListItem
+                        sx={{
+                          flexDirection: "column",
+                          alignItems: isMe ? "flex-end" : "flex-start",
+                          p: 0,
+                          width: "100%",
+                          position: "relative",
+                          "&:hover .message-actions": { opacity: 1 },
+                        }}
+                      >
                     <Box
                       sx={{
                         display: "flex",
@@ -1330,6 +1334,8 @@ export default function MessageWindow() {
                       </Paper>
                     </Box>
                   </ListItem>
+                    </>
+                  )}
                 </React.Fragment>
               );
             });
