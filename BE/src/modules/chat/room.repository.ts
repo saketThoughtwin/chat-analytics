@@ -6,7 +6,10 @@ class RoomRepository {
     }
 
     async findById(id: string) {
-        return Room.findById(id).populate('participants', '-password').lean();
+        return Room.findById(id)
+            .populate('participants', '-password')
+            .populate('leftParticipants', '-password')
+            .lean();
     }
 
     async findByParticipant(userId: string, options?: { skip?: number; limit?: number }) {
@@ -18,6 +21,7 @@ class RoomRepository {
         })
 
             .populate('participants', '-password')
+            .populate('leftParticipants', '-password')
             .sort({ updatedAt: -1 })
             .skip(options?.skip || 0)
             .limit(options?.limit || 20)
@@ -27,18 +31,26 @@ class RoomRepository {
     }
 
     async findByParticipants(participants: string[]) {
-        return Room.find({ participants: { $all: participants } }).populate('participants', '-password').lean();
+        return Room.find({ participants: { $all: participants } })
+            .populate('participants', '-password')
+            .populate('leftParticipants', '-password')
+            .lean();
     }
 
     async findDirectRoom(userId1: string, userId2: string) {
         return Room.findOne({
             type: 'direct',
             participants: { $all: [userId1, userId2] }
-        }).populate('participants', '-password').lean();
+        })
+            .populate('participants', '-password')
+            .populate('leftParticipants', '-password')
+            .lean();
     }
 
     async updateById(id: string, update: Partial<IRoom>) {
-        return Room.findByIdAndUpdate(id, update, { new: true }).populate('participants', '-password');
+        return Room.findByIdAndUpdate(id, update, { new: true })
+            .populate('participants', '-password')
+            .populate('leftParticipants', '-password');
     }
 
     async updateLastMessage(roomId: string, messageId: string, message: string, senderId: string) {

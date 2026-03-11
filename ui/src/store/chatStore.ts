@@ -34,7 +34,7 @@ interface Room {
   avatar?: string;
   groupAdmin?: string;
   participants: any[];
-  leftParticipants?: string[];
+  leftParticipants?: any[];
   lastMessage?: Message;
   unreadCount?: number;
 }
@@ -201,10 +201,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
             (p: any) => (p?._id || p)?.toString?.() === currentUserId,
           )
         : false;
+      const leftIds = new Set(
+        (room?.leftParticipants || [])
+          .map((p: any) => (p?._id || p)?.toString?.())
+          .filter(Boolean),
+      );
       const hasLeftGroup =
         !!currentUserId &&
         room?.type === "group" &&
-        room?.leftParticipants?.includes(currentUserId) &&
+        leftIds.has(currentUserId) &&
         !isActiveParticipant;
 
       // Atomically set active room and messages (from cache or empty)
@@ -239,10 +244,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
           (p: any) => (p?._id || p)?.toString?.() === currentUserId,
         )
       : false;
+    const leftIds = new Set(
+      (room?.leftParticipants || [])
+        .map((p: any) => (p?._id || p)?.toString?.())
+        .filter(Boolean),
+    );
     const hasLeftGroup =
       !!currentUserId &&
       room?.type === "group" &&
-      room?.leftParticipants?.includes(currentUserId) &&
+      leftIds.has(currentUserId) &&
       !isActiveParticipant;
 
     // Check cache first (but never use it for left groups, to avoid showing old history)
@@ -809,10 +819,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set((state) => {
         const updateMsg = (m: Message) => {
           if (m._id !== messageId) return m;
-          const deliveredTo = m.deliveredTo || [];
-          const room = state.rooms.find(r => r._id === roomId);
-          const activeParticipants = room?.participants?.filter(p => !room.leftParticipants?.includes((p._id || p).toString())) || [];
-          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+	          const deliveredTo = m.deliveredTo || [];
+	          const room = state.rooms.find(r => r._id === roomId);
+	          const leftIds = new Set(
+	            (room?.leftParticipants || [])
+	              .map((p: any) => (p?._id || p)?.toString?.())
+	              .filter(Boolean),
+	          );
+	          const activeParticipants = room?.participants?.filter(
+	            (p: any) => !leftIds.has((p?._id || p)?.toString?.()),
+	          ) || [];
+	          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
 
           if (userId && !deliveredTo.some((d: any) => d.userId === userId)) {
             const updatedDeliveredTo = [...deliveredTo, { userId, at: at || new Date().toISOString() }];
@@ -852,10 +869,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
             updatedReadBy = [...currentReadBy, { userId, at: at || new Date().toISOString() }];
           }
 
-          const room = state.rooms.find(r => r._id === roomId);
-          const activeParticipants = room?.participants?.filter(p => !room.leftParticipants?.includes((p._id || p).toString())) || [];
-          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
-          const isEveryoneRead = updatedReadBy.length >= otherParticipantsCount && otherParticipantsCount > 0;
+	          const room = state.rooms.find(r => r._id === roomId);
+	          const leftIds = new Set(
+	            (room?.leftParticipants || [])
+	              .map((p: any) => (p?._id || p)?.toString?.())
+	              .filter(Boolean),
+	          );
+	          const activeParticipants = room?.participants?.filter(
+	            (p: any) => !leftIds.has((p?._id || p)?.toString?.()),
+	          ) || [];
+	          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+	          const isEveryoneRead = updatedReadBy.length >= otherParticipantsCount && otherParticipantsCount > 0;
 
           return { ...msg, read: isEveryoneRead, readBy: updatedReadBy };
         };

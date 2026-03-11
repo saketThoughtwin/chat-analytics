@@ -837,7 +837,12 @@ export default function MessageWindow() {
           {isGroup && (() => {
             const currentId = currentUser?.id || '';
             const isParticipant = !!activeRoom?.participants?.some((p: any) => (p?._id || p)?.toString?.() === currentId);
-            const hasLeft = !!activeRoom?.leftParticipants?.includes(currentId) && !isParticipant;
+            const leftIds = new Set(
+              (activeRoom?.leftParticipants || [])
+                .map((p: any) => (p?._id || p)?.toString?.())
+                .filter(Boolean),
+            );
+            const hasLeft = leftIds.has(currentId) && !isParticipant;
             return (
               <>
                 <IconButton onClick={(e) => setHeaderAnchorEl(e.currentTarget)}>
@@ -1131,7 +1136,13 @@ export default function MessageWindow() {
                             }}
                           >
                             {(() => {
-                              const sender = activeRoom?.participants.find(p => (p._id || p).toString() === msg.sender);
+                              const members = [
+                                ...(activeRoom?.participants || []),
+                                ...(activeRoom?.leftParticipants || []),
+                              ];
+                              const sender = members.find(
+                                (p: any) => (p?._id || p)?.toString?.() === msg.sender,
+                              );
                               return typeof sender === 'object' ? sender.name : 'Unknown';
                             })()}
                           </Typography>
@@ -1349,7 +1360,12 @@ export default function MessageWindow() {
         const activeRoom = rooms.find(r => r._id === activeRoomId);
         const currentId = currentUser?.id || '';
         const isParticipant = !!activeRoom?.participants?.some((p: any) => (p?._id || p)?.toString?.() === currentId);
-        const hasLeft = !!activeRoom?.leftParticipants?.includes(currentId) && !isParticipant;
+        const leftIds = new Set(
+          (activeRoom?.leftParticipants || [])
+            .map((p: any) => (p?._id || p)?.toString?.())
+            .filter(Boolean),
+        );
+        const hasLeft = leftIds.has(currentId) && !isParticipant;
 
         if (hasLeft) {
           return (
