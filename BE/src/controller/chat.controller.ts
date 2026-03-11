@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "@middlewares/auth.middleware";
 import { io } from "@realtime/socket.server";
+import { redis } from "@config/redis";
 import roomService from "@modules/chat/room.service";
 import messageService from "@modules/chat/message.service";
 import messageRepository from "@modules/chat/message.repository";
@@ -680,6 +681,10 @@ export default class ChatController {
 
       // Handling Removals
       for (const removedId of removedParticipantIds) {
+        // Ensure removed users stop receiving live events for this group across all devices.
+        await io.in(removedId.toString()).socketsLeave(roomId);
+        await redis.srem(`chat:active:${roomId}`, removedId.toString());
+
         const removedUser = room.participants.find(
           (p: any) => (p._id || p).toString() === removedId,
         );
@@ -803,6 +808,10 @@ export default class ChatController {
       (p: any) => (p._id || p).toString() === userId,
     );
     if (!user) throw new ApiError(403, "Not a member of this group");
+
+    // Ensure the leaver stops receiving live events for this group across all devices.
+    await io.in(userId!).socketsLeave(roomId);
+    await redis.srem(`chat:active:${roomId}`, userId!);
 
     const updatedRoom = await roomService.leaveGroup(roomId, userId!);
 

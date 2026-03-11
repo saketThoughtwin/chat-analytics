@@ -138,6 +138,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
 
   fetchRooms: async () => {
+    const currentUserId = useAuthStore.getState().user?.id;
+    const wasJoinableRoomIds = currentUserId
+      ? get()
+          .rooms
+          .filter((r) =>
+            r.participants?.some(
+              (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+            ),
+          )
+          .map((r) => r._id)
+      : [];
+
     // Only show loading if we don't have any rooms yet (stale-while-revalidate)
     if (get().rooms.length === 0) {
       set({ loadingRooms: true });
@@ -145,14 +157,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       const response = await api.get(API_ENDPOINTS.CHAT.ROOMS);
-      const rooms = response.data || [];
+      const rooms: Room[] = response.data || [];
       set({ rooms });
 
-      // Join all rooms to receive real-time updates (typing, etc.)
+      // Join only rooms where I'm an active participant.
+      // If I've left a group, I should not stay subscribed to its Socket.IO room.
       const socket = getSocket();
-      rooms.forEach((room: Room) => {
-        socket.emit("join_room", room._id);
-      });
+      const joinableRoomIds = currentUserId
+        ? rooms
+            .filter((r: Room) =>
+              r.participants?.some(
+                (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+              ),
+            )
+            .map((r: Room) => r._id)
+        : [];
+
+      const wasJoinable = new Set<string>(wasJoinableRoomIds);
+      const nowJoinable = new Set<string>(joinableRoomIds);
+
+      wasJoinableRoomIds
+        .filter((id) => !nowJoinable.has(id))
+        .forEach((id) => socket.emit("leave_room", id));
+
+      joinableRoomIds
+        .filter((id) => !wasJoinable.has(id))
+        .forEach((id) => socket.emit("join_room", id));
     } catch (error) {
       console.error("Failed to fetch rooms", error);
     } finally {
@@ -165,6 +195,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const room = get().rooms.find(r => r._id === roomId);
       const initialUnreadCount = room?.unreadCount || 0;
       const cachedMessages = get().messagesCache[roomId];
+      const currentUserId = useAuthStore.getState().user?.id;
+      const isActiveParticipant = !!currentUserId
+        ? room?.participants?.some(
+            (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+          )
+        : false;
 
       // Atomically set active room and messages (from cache or empty)
       // This prevents "ghost" messages from the previous room
@@ -181,8 +217,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       get().fetchMessages(roomId);
       const socket = getSocket();
-      socket.emit("join_room", roomId);
-      get().markAsRead(roomId);
+      if (isActiveParticipant) {
+        socket.emit("join_room", roomId);
+        get().markAsRead(roomId);
+      }
     } else {
       set({ activeRoomId: null, messages: [] });
     }
@@ -584,6 +622,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   leaveRoom: async (roomId: string) => {
     try {
       await api.post(API_ENDPOINTS.CHAT.LEAVE(roomId));
+      // Stop receiving live events for this group immediately.
+      getSocket().emit("leave_room", roomId);
+      set((state) => ({
+        activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
+        messages: state.activeRoomId === roomId ? [] : state.messages,
+      }));
       // Refresh rooms to get the updated participants/leftParticipants state
       await get().fetchRooms();
     } catch (error) {
@@ -910,6 +954,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on("room_update", (updatedRoom: Room) => {
+      const currentUserId = useAuthStore.getState().user?.id;
+      const isActiveParticipant = !!currentUserId
+        ? updatedRoom.participants?.some(
+            (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+          )
+        : false;
+
+      // If I'm not an active participant (e.g. I left), don't keep receiving live updates.
+      if (!isActiveParticipant) {
+        socket.emit("leave_room", updatedRoom._id);
+        return;
+      }
+
       const exists = get().rooms.some((r) => r._id === updatedRoom._id);
 
       set((state) => ({
