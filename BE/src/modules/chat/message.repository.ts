@@ -13,6 +13,20 @@ class MessageRepository {
         return ChatMessage.find({ _id: { $in: ids } }).lean();
     }
 
+    async findLatestSystemLeaveMessage(roomId: string, userName: string, options?: { atOrBefore?: Date }) {
+        const query: any = {
+            roomId,
+            type: 'system',
+            message: `${userName} left`
+        };
+
+        if (options?.atOrBefore) {
+            query.createdAt = { $lte: options.atOrBefore };
+        }
+
+        return ChatMessage.findOne(query).sort({ createdAt: -1 }).lean().exec();
+    }
+
     async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }, filter?: any) {
         const query = { roomId, ...(filter || {}) };
 

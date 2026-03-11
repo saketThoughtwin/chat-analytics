@@ -5,6 +5,7 @@ import { redis } from "@config/redis";
 import roomService from "@modules/chat/room.service";
 import messageService from "@modules/chat/message.service";
 import messageRepository from "@modules/chat/message.repository";
+import userRepository from "@modules/users/user.repository";
 import { ApiError } from "@utils/ApiError";
 
 const toPlainRoom = (room: any) =>
@@ -440,6 +441,57 @@ export default class ChatController {
 
     if (!isParticipant && !hasLeft) {
       throw new ApiError(403, "You are not a participant in this room");
+    }
+
+    // If user left a group, they should only see their own "left" system notification.
+    if (room.type === "group" && !isParticipant && hasLeft) {
+      const user = await userRepository.findById(userId!);
+      const userName = user?.name;
+      if (!userName) {
+        return res.json({ messages: [], hasMore: false, total: 0 });
+      }
+
+      const rawLeftAtBy = (room as any).leftAtBy;
+      const leftAt =
+        rawLeftAtBy instanceof Map
+          ? rawLeftAtBy.get(userId!)
+          : rawLeftAtBy?.[userId!];
+
+      const leftAtDate = leftAt ? new Date(leftAt) : undefined;
+      const slackAtOrBefore = leftAtDate
+        ? new Date(leftAtDate.getTime() + 10_000) // allow small clock/ordering drift
+        : undefined;
+
+      let leaveMsg = await messageRepository.findLatestSystemLeaveMessage(
+        roomId,
+        userName,
+        slackAtOrBefore ? { atOrBefore: slackAtOrBefore } : undefined,
+      );
+
+      if (!leaveMsg) {
+        leaveMsg = await messageRepository.findLatestSystemLeaveMessage(roomId, userName);
+      }
+
+      const transformed = leaveMsg
+        ? [{ ...leaveMsg, starred: false, starredBy: undefined }]
+        : [
+            {
+              _id: `left_${roomId}_${userId}`,
+              sender: undefined,
+              roomId,
+              message: `${userName} left`,
+              type: "system",
+              read: true,
+              deleted: false,
+              createdAt: (leftAtDate || new Date()).toISOString(),
+            } as any,
+          ];
+
+      return res.json({
+        messages: transformed,
+        hasMore: false,
+        total: transformed.length,
+      });
     }
 
     // If user has left a group, hide any future messages after their leave time.

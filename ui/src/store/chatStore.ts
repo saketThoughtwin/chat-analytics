@@ -201,13 +201,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
             (p: any) => (p?._id || p)?.toString?.() === currentUserId,
           )
         : false;
+      const hasLeftGroup =
+        !!currentUserId &&
+        room?.type === "group" &&
+        room?.leftParticipants?.includes(currentUserId) &&
+        !isActiveParticipant;
 
       // Atomically set active room and messages (from cache or empty)
       // This prevents "ghost" messages from the previous room
       set({
         activeRoomId: roomId,
-        messages: cachedMessages || [],
-        loading: !cachedMessages, // Only show loader if we don't have cache
+        messages: hasLeftGroup ? [] : cachedMessages || [],
+        loading: hasLeftGroup ? true : !cachedMessages, // Only show loader if we don't have cache
         error: null,
         page: 1,
         hasMore: true,
@@ -227,8 +232,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   fetchMessages: async (roomId) => {
-    // Check cache first
-    const cachedMessages = get().messagesCache[roomId];
+    const currentUserId = useAuthStore.getState().user?.id;
+    const room = get().rooms.find((r) => r._id === roomId);
+    const isActiveParticipant = !!currentUserId
+      ? room?.participants?.some(
+          (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+        )
+      : false;
+    const hasLeftGroup =
+      !!currentUserId &&
+      room?.type === "group" &&
+      room?.leftParticipants?.includes(currentUserId) &&
+      !isActiveParticipant;
+
+    // Check cache first (but never use it for left groups, to avoid showing old history)
+    const cachedMessages = hasLeftGroup ? undefined : get().messagesCache[roomId];
     if (cachedMessages) {
       set({
         messages: cachedMessages,
@@ -627,6 +645,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set((state) => ({
         activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
         messages: state.activeRoomId === roomId ? [] : state.messages,
+        messagesCache: Object.fromEntries(
+          Object.entries(state.messagesCache).filter(([id]) => id !== roomId),
+        ),
       }));
       // Refresh rooms to get the updated participants/leftParticipants state
       await get().fetchRooms();
