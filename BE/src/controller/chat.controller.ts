@@ -527,9 +527,41 @@ export default class ChatController {
 
     const result = await messageService.getMessages(roomId, { page, limit }, filter);
 
+    // Ensure group sender names are available even after users leave.
+    // (Old messages may not have senderName persisted.)
+    const nameById = new Map<string, string>();
+    const upsertName = (id: any, name: any) => {
+      const key = id?.toString?.();
+      const val = typeof name === "string" ? name : undefined;
+      if (key && val && !nameById.has(key)) nameById.set(key, val);
+    };
+
+    // From populated room participants/leftParticipants if available
+    (room.participants || []).forEach((p: any) =>
+      upsertName((p as any)?._id || p, (p as any)?.name),
+    );
+    (room.leftParticipants || []).forEach((p: any) =>
+      upsertName((p as any)?._id || p, (p as any)?.name),
+    );
+
+    // Fill gaps from users collection in one query
+    const senderIds = Array.from(
+      new Set(
+        (result.messages || [])
+          .map((m: any) => m?.sender?.toString?.())
+          .filter(Boolean),
+      ),
+    );
+    const missingIds = senderIds.filter((id) => !nameById.has(id));
+    if (missingIds.length > 0) {
+      const users = await userRepository.findAll({ _id: { $in: missingIds } });
+      users.forEach((u: any) => upsertName(u?._id, u?.name));
+    }
+
     // Transform messages to include 'starred' boolean for current user
     const transformedMessages = result.messages.map((m) => ({
       ...m,
+      senderName: (m as any).senderName || (m as any).sender ? nameById.get((m as any).sender.toString()) : undefined,
       starred: m.starredBy?.includes(userId!) || false,
       starredBy: undefined,
     }));
