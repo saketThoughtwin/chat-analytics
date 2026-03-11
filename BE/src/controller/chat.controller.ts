@@ -146,10 +146,45 @@ export default class ChatController {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
 
-    const rooms = await roomService.getUserRooms(userId!, page, limit);
+    // WhatsApp-like "delete chat for me": hide rooms the user cleared until a new message arrives.
+    const isVisibleForUser = (room: any) => {
+      const rawHiddenBy = (room as any).hiddenBy;
+      const hiddenAt =
+        rawHiddenBy instanceof Map ? rawHiddenBy.get(userId!) : rawHiddenBy?.[userId!];
+      if (!hiddenAt) return true;
+
+      const hiddenAtDate = new Date(hiddenAt);
+      const lastActivity =
+        (room as any)?.lastMessage?.timestamp ||
+        (room as any)?.lastMessage?.createdAt ||
+        (room as any)?.createdAt;
+      const lastActivityDate = lastActivity ? new Date(lastActivity) : undefined;
+      if (!lastActivityDate || Number.isNaN(lastActivityDate.getTime())) return false;
+
+      // Hide when nothing new has happened since the user cleared it.
+      return lastActivityDate.getTime() > hiddenAtDate.getTime();
+    };
+
+    // Fetch extra pages to fill `limit` after filtering hidden rooms.
+    const visibleRooms: any[] = [];
+    let currentPage = page;
+    let safety = 0;
+    while (visibleRooms.length < limit && safety < 10) {
+      const batch = await roomService.getUserRooms(userId!, currentPage, limit);
+      if (!batch || batch.length === 0) break;
+
+      for (const room of batch) {
+        if (isVisibleForUser(room)) visibleRooms.push(room);
+        if (visibleRooms.length >= limit) break;
+      }
+
+      if (batch.length < limit) break;
+      currentPage += 1;
+      safety += 1;
+    }
 
     // Transform rooms to include unreadCount for the current user
-    const transformedRooms = rooms.map((room) => {
+    const transformedRooms = visibleRooms.map((room) => {
       const unreadCount =
         room.unreadCounts instanceof Map
           ? room.unreadCounts.get(userId!) || 0
@@ -523,6 +558,14 @@ export default class ChatController {
         // Backward-compat: if we don't know when they left, hide everything for safety.
         filter = { createdAt: { $lte: new Date(0) } };
       }
+    } else if (isParticipant) {
+      // If user cleared/deleted chat for themself, only show messages after that point.
+      const rawHiddenBy = (room as any).hiddenBy;
+      const hiddenAt =
+        rawHiddenBy instanceof Map ? rawHiddenBy.get(userId!) : rawHiddenBy?.[userId!];
+      if (hiddenAt) {
+        filter = { createdAt: { $gt: new Date(hiddenAt) } };
+      }
     }
 
     const result = await messageService.getMessages(roomId, { page, limit }, filter);
@@ -684,8 +727,11 @@ export default class ChatController {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
+    // For group members (non-admin), "delete chat" should only clear/hide the chat for themself.
     if (room.type === "group" && !isAdmin && isParticipant) {
-      throw new ApiError(403, "Only group admins can delete the room");
+      await roomService.hideRoomForUser(roomId, userId!);
+      io.to(userId!).emit("room_deleted", { roomId });
+      return res.json({ message: "Chat deleted for you" });
     }
 
     // If user has left, "deleting" means removing them from leftParticipants so it's hidden

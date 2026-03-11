@@ -468,11 +468,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await api.delete(
         API_ENDPOINTS.CHAT.ROOM_BY_ID.replace(":roomId", roomId),
       );
-      set((state) => ({
-        rooms: state.rooms.filter((r) => r._id !== roomId),
-        activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
-        messages: state.activeRoomId === roomId ? [] : state.messages,
-      }));
+      set((state) => {
+        const { [roomId]: _, ...restCache } = state.messagesCache;
+        return {
+          rooms: state.rooms.filter((r) => r._id !== roomId),
+          messagesCache: restCache,
+          activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
+          messages: state.activeRoomId === roomId ? [] : state.messages,
+        };
+      });
     } catch (error) {
       console.error("Failed to delete room", error);
       throw error;

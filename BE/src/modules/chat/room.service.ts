@@ -123,6 +123,27 @@ class RoomService {
         return roomRepository.updateById(roomId, data);
     }
 
+    /**
+     * Hide/clear a room for a single user (they stay in the group).
+     * Room reappears when new messages arrive (via lastMessage timestamp).
+     */
+    async hideRoomForUser(roomId: string, userId: string): Promise<IRoom | null> {
+        const room = await roomRepository.findById(roomId);
+        if (!room) return null;
+
+        const rawHiddenBy = (room as any).hiddenBy;
+        const hiddenByObj: Record<string, any> =
+            rawHiddenBy instanceof Map
+                ? Object.fromEntries(rawHiddenBy.entries())
+                : (rawHiddenBy || {});
+        hiddenByObj[userId] = new Date();
+
+        // Clear unread count for this user so hidden rooms don't keep stale badges.
+        await this.markRoomAsRead(roomId, userId);
+
+        return roomRepository.updateById(roomId, { hiddenBy: hiddenByObj as any } as any);
+    }
+
     async leaveGroup(roomId: string, userId: string): Promise<IRoom | null> {
         const room = await roomRepository.findById(roomId);
         if (!room) return null;

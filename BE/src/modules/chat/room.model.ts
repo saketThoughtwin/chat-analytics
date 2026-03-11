@@ -9,6 +9,7 @@ export interface IRoom {
     participants: string[]; // Array of user IDs
     leftParticipants?: string[]; // Array of user IDs who left but have history
     leftAtBy?: Map<string, Date>; // userId -> leftAt (used to hide future messages)
+    hiddenBy?: Map<string, Date>; // userId -> hiddenAt (delete/clear chat for me)
     lastMessage?: {
 
         messageId: string;
@@ -46,6 +47,11 @@ const RoomSchema = new Schema<IRoom>(
             default: []
         },
         leftAtBy: {
+            type: Map,
+            of: Date,
+            default: new Map()
+        },
+        hiddenBy: {
             type: Map,
             of: Date,
             default: new Map()
