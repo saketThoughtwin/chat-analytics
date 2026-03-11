@@ -8,6 +8,7 @@ export interface IRoom {
     groupAdmin?: string; // User ID who created the group
     participants: string[]; // Array of user IDs
     leftParticipants?: string[]; // Array of user IDs who left but have history
+    leftAtBy?: Map<string, Date>; // userId -> leftAt (used to hide future messages)
     lastMessage?: {
 
         messageId: string;
@@ -43,6 +44,11 @@ const RoomSchema = new Schema<IRoom>(
             type: [String],
             ref: 'User',
             default: []
+        },
+        leftAtBy: {
+            type: Map,
+            of: Date,
+            default: new Map()
         },
 
         lastMessage: {

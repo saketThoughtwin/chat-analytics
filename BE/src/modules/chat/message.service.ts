@@ -60,7 +60,8 @@ class MessageService {
      */
     async getMessages(
         roomId: string,
-        options: PaginationOptions = { page: 1, limit: 50 }
+        options: PaginationOptions = { page: 1, limit: 50 },
+        filter?: any
     ): Promise<{ messages: IChatMessage[]; hasMore: boolean; total: number }> {
         const { page, limit } = options;
         const skip = (page - 1) * limit;
@@ -70,8 +71,8 @@ class MessageService {
                 skip,
                 limit,
                 sort: { createdAt: -1 }
-            }),
-            messageRepository.countByRoomId(roomId)
+            }, filter),
+            messageRepository.countByRoomId(roomId, filter)
         ]);
 
         const hasMore = skip + messages.length < total;

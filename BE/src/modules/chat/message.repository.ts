@@ -13,9 +13,10 @@ class MessageRepository {
         return ChatMessage.find({ _id: { $in: ids } }).lean();
     }
 
-    async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }) {
+    async findByRoomId(roomId: string, options?: { skip?: number; limit?: number; sort?: any }, filter?: any) {
+        const query = { roomId, ...(filter || {}) };
 
-        return ChatMessage.find({ roomId })
+        return ChatMessage.find(query)
             .sort(options?.sort || { createdAt: -1 })
             .skip(options?.skip || 0)
             .limit(options?.limit || 50)
@@ -35,8 +36,9 @@ class MessageRepository {
         return ChatMessage.find({ receiver: receiverId, read: false, deleted: false }).lean();
     }
 
-    async countByRoomId(roomId: string) {
-        return ChatMessage.countDocuments({ roomId, deleted: false });
+    async countByRoomId(roomId: string, filter?: any) {
+        const query = { roomId, deleted: false, ...(filter || {}) };
+        return ChatMessage.countDocuments(query);
     }
 
     async countBySender(senderId: string) {

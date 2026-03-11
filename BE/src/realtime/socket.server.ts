@@ -4,6 +4,7 @@ import { redis } from "@config/redis";
 import messageRepository from "@modules/chat/message.repository";
 import { verifyToken } from "@utils/jwt";
 import messageService from "@modules/chat/message.service";
+import roomService from "@modules/chat/room.service";
 export let io: Server;
 
 // Track user's active rooms for cleanup on disconnect
@@ -53,6 +54,19 @@ export const initSocketServer = (server: http.Server) => {
     }
 
     socket.on("join_room", async (roomId: string) => {
+      if (!userId) return;
+
+      // Prevent users from subscribing to rooms they are not currently a participant of
+      // (e.g. after leaving a group).
+      const room = await roomService.getRoomById(roomId);
+      const isParticipant = !!room?.participants?.some(
+        (p: any) => (p?._id || p)?.toString?.() === userId,
+      );
+      if (!isParticipant) {
+        socket.leave(roomId);
+        return;
+      }
+
       socket.join(roomId);
 
       // Mark all un-delivered messages in this room as delivered for this user
@@ -174,4 +188,3 @@ export const initSocketServer = (server: http.Server) => {
 
   });
 };
-

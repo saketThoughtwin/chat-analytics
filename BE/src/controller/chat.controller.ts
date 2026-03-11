@@ -268,8 +268,17 @@ export default class ChatController {
       receiver,
     });
 
-    // Emit to room (broadcast message)
-    io.to(roomId).emit("receive_message", newMsg);
+    // Emit:
+    // - Direct: room broadcast + receiver channel (legacy + reliability)
+    // - Group: per-participant channels only (prevents leavers from seeing future messages)
+    if (room.type === "group") {
+      const participantIds = room.participants
+        .map((p: any) => ((p as any)._id || p).toString())
+        .filter(Boolean);
+      participantIds.forEach((id: string) => io.to(id).emit("receive_message", newMsg));
+    } else {
+      io.to(roomId).emit("receive_message", newMsg);
+    }
 
     // Also emit to receiver specifically for reliability in direct chats
     if (receiver) {
@@ -363,17 +372,17 @@ export default class ChatController {
       receiver,
     });
 
-    // Emit to room (broadcast message)
-    io.to(roomId).emit("receive_message", newMsg);
-
-    // Also emit to individual participants for reliability
-    for (const participant of room.participants) {
-      const pId = (participant as any)._id
-        ? (participant as any)._id.toString()
-        : participant.toString();
-      if (pId !== userId) {
-        io.to(pId).emit("receive_message", newMsg);
-      }
+    // Emit:
+    // - Direct: room broadcast + receiver channel
+    // - Group: per-participant channels only (prevents leavers from seeing future messages)
+    if (room.type === "group") {
+      const participantIds = room.participants
+        .map((p: any) => ((p as any)._id || p).toString())
+        .filter(Boolean);
+      participantIds.forEach((id: string) => io.to(id).emit("receive_message", newMsg));
+    } else {
+      io.to(roomId).emit("receive_message", newMsg);
+      if (receiver) io.to(receiver).emit("receive_message", newMsg);
     }
 
     console.log(`Media message sent: ${type}, URL: ${(file as any).path}`);
@@ -433,7 +442,24 @@ export default class ChatController {
       throw new ApiError(403, "You are not a participant in this room");
     }
 
-    const result = await messageService.getMessages(roomId, { page, limit });
+    // If user has left a group, hide any future messages after their leave time.
+    let filter: any = undefined;
+    if (!isParticipant && hasLeft) {
+      const rawLeftAtBy = (room as any).leftAtBy;
+      const leftAt =
+        rawLeftAtBy instanceof Map
+          ? rawLeftAtBy.get(userId!)
+          : rawLeftAtBy?.[userId!];
+
+      if (leftAt) {
+        filter = { createdAt: { $lte: new Date(leftAt) } };
+      } else {
+        // Backward-compat: if we don't know when they left, hide everything for safety.
+        filter = { createdAt: { $lte: new Date(0) } };
+      }
+    }
+
+    const result = await messageService.getMessages(roomId, { page, limit }, filter);
 
     // Transform messages to include 'starred' boolean for current user
     const transformedMessages = result.messages.map((m) => ({

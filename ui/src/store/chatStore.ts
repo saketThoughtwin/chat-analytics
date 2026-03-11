@@ -645,6 +645,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log("Socket: receive_message", message);
       const { activeRoomId } = get();
       const currentUserId = useAuthStore.getState().user?.id;
+      const roomForMessage = get().rooms.find((r) => r._id === message.roomId);
+      if (roomForMessage && currentUserId) {
+        const isActiveParticipant = roomForMessage.participants?.some(
+          (p: any) => (p?._id || p)?.toString?.() === currentUserId,
+        );
+        // If I've left this group, ignore any stray events and ensure we are not subscribed.
+        if (!isActiveParticipant) {
+          socket.emit("leave_room", message.roomId);
+          return;
+        }
+      }
 
       set((state) => {
         // 1. Check for duplicates (very important since we emit to room AND user)

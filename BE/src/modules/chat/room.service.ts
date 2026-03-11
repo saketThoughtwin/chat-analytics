@@ -129,7 +129,16 @@ class RoomService {
 
         // Move from participants to leftParticipants
         const updatedParticipants = room.participants.filter(p => (typeof p === 'object' ? (p as any)._id : p).toString() !== userId);
-        const updatedLeftParticipants = [...(room.leftParticipants || []), userId];
+        const existingLeft = (room.leftParticipants || []).map((id: any) => id?.toString?.() || id).filter(Boolean);
+        const updatedLeftParticipants = Array.from(new Set([...existingLeft, userId]));
+
+        // Track when the user left so we can hide future messages for them.
+        const rawLeftAtBy = (room as any).leftAtBy;
+        const leftAtByObj: Record<string, any> =
+            rawLeftAtBy instanceof Map
+                ? Object.fromEntries(rawLeftAtBy.entries())
+                : (rawLeftAtBy || {});
+        leftAtByObj[userId] = new Date();
 
         // Remove from unreadCounts
         if (room.unreadCounts instanceof Map) {
@@ -148,6 +157,7 @@ class RoomService {
         return roomRepository.updateById(roomId, {
             participants: updatedParticipants,
             leftParticipants: updatedLeftParticipants,
+            leftAtBy: leftAtByObj as any,
             unreadCounts: room.unreadCounts,
             groupAdmin: updatedAdmin
         });
