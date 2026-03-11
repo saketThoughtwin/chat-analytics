@@ -199,9 +199,18 @@ export default function RoomList() {
 
   const handleDeleteConfirm = async () => {
     if (roomToDelete) {
-      await deleteRoom(roomToDelete);
-      setSnackbarMessage("Chat deleted successfully.");
-      setSnackbarOpen(true);
+      try {
+        await deleteRoom(roomToDelete);
+        setSnackbarMessage("Chat deleted successfully.");
+        setSnackbarOpen(true);
+      } catch (err: any) {
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete chat.";
+        setSnackbarMessage(msg);
+        setSnackbarOpen(true);
+      }
     }
     setDeleteDialogOpen(false);
     setRoomToDelete(null);

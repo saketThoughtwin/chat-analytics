@@ -129,7 +129,9 @@ class RoomService {
 
         // Move from participants to leftParticipants
         const updatedParticipants = room.participants.filter(p => (typeof p === 'object' ? (p as any)._id : p).toString() !== userId);
-        const existingLeft = (room.leftParticipants || []).map((id: any) => id?.toString?.() || id).filter(Boolean);
+        const existingLeft = (room.leftParticipants || [])
+            .map((p: any) => ((p as any)?._id || p)?.toString?.())
+            .filter((id: any) => Boolean(id) && id !== "[object Object]");
         const updatedLeftParticipants = Array.from(new Set([...existingLeft, userId]));
 
         // Track when the user left so we can hide future messages for them.

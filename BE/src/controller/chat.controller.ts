@@ -690,15 +690,32 @@ export default class ChatController {
 
     // If user has left, "deleting" means removing them from leftParticipants so it's hidden
     if (hasLeft && !isAdmin) {
-      const updatedLeftParticipants =
-        room.leftParticipants?.filter(
-          (p: any) => (p._id || p).toString() !== userId,
-        ) || [];
+      const updatedLeftParticipants = (room.leftParticipants || [])
+        .map((p: any) => ((p as any)?._id || p)?.toString?.())
+        .filter((id: any) => Boolean(id) && id !== userId && id !== "[object Object]");
       await roomService.updateRoom(roomId, {
         leftParticipants: updatedLeftParticipants,
       });
+      io.to(userId!).emit("room_deleted", { roomId });
       return res.json({ message: "Chat removed successfully" });
     }
+
+    const participantIds = (room.participants || [])
+      .map((p: any) => ((p as any)?._id || p)?.toString?.())
+      .filter(Boolean);
+    const leftIds = (room.leftParticipants || [])
+      .map((p: any) => ((p as any)?._id || p)?.toString?.())
+      .filter(Boolean);
+    const allUserIds = Array.from(
+      new Set(
+        [...participantIds, ...leftIds].filter((id) => id !== "[object Object]"),
+      ),
+    );
+
+    // Notify all members to remove the room from their UI immediately
+    allUserIds.forEach((id: string) => io.to(id).emit("room_deleted", { roomId }));
+    await io.in(roomId).socketsLeave(roomId);
+    await redis.del(`chat:active:${roomId}`);
 
     // Delete all messages in the room
     await messageService.deleteMessagesByRoomId(roomId);
@@ -749,8 +766,8 @@ export default class ChatController {
       // If someone left previously and is re-added, remove them from leftParticipants.
       // Otherwise they will still be blocked from sending messages and excluded from UI counts.
       const left = (room.leftParticipants || [])
-        .map((id: any) => id?.toString())
-        .filter(Boolean);
+        .map((p: any) => ((p as any)?._id || p)?.toString?.())
+        .filter((id: any) => Boolean(id) && id !== "[object Object]");
       updateData.leftParticipants = left.filter(
         (id: string) => !normalizedParticipants.includes(id),
       );

@@ -475,6 +475,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error) {
       console.error("Failed to delete room", error);
+      throw error;
     }
   },
   addLocalMessage: (msg) =>
@@ -672,6 +673,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   initSocketEvents: () => {
     const socket = getSocket();
+
+    socket.on("room_deleted", ({ roomId }: { roomId: string }) => {
+      set((state) => {
+        const { [roomId]: _, ...restCache } = state.messagesCache;
+        return {
+          rooms: state.rooms.filter((r) => r._id !== roomId),
+          messagesCache: restCache,
+          activeRoomId: state.activeRoomId === roomId ? null : state.activeRoomId,
+          messages: state.activeRoomId === roomId ? [] : state.messages,
+        };
+      });
+    });
 
     socket.on("receive_message", (message: Message) => {
       console.log("Socket: receive_message", message);
