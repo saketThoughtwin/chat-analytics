@@ -1136,6 +1136,7 @@ export default function MessageWindow() {
                             }}
                           >
                             {(() => {
+                              if (msg.senderName) return msg.senderName;
                               const members = [
                                 ...(activeRoom?.participants || []),
                                 ...(activeRoom?.leftParticipants || []),

@@ -262,8 +262,15 @@ export default class ChatController {
       ? ((receiverObj as any)._id || receiverObj).toString()
       : undefined;
 
+    const senderObj = room.participants.find(
+      (p: any) => ((p as any)._id || p).toString() === userId,
+    );
+    const senderName =
+      typeof senderObj === "object" ? (senderObj as any).name : undefined;
+
     const newMsg = await messageService.sendMessage({
       sender: userId!,
+      senderName,
       roomId,
       message,
       receiver,
@@ -364,8 +371,15 @@ export default class ChatController {
     const isAudio = file.mimetype.startsWith("audio");
     const type = isVideo ? "video" : isAudio ? "audio" : "image";
 
+    const senderObj = room.participants.find(
+      (p: any) => ((p as any)._id || p).toString() === userId,
+    );
+    const senderName =
+      typeof senderObj === "object" ? (senderObj as any).name : undefined;
+
     const newMsg = await messageService.sendMessage({
       sender: userId!,
+      senderName,
       roomId,
       message: "",
       type,

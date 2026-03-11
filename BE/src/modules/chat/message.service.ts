@@ -10,6 +10,7 @@ interface PaginationOptions {
 
 interface MessageData {
     sender: string;
+    senderName?: string;
     roomId: string;
     message?: string;
     type?: 'text' | 'image' | 'video' | 'audio';
@@ -24,6 +25,7 @@ class MessageService {
     async sendMessage(data: MessageData): Promise<IChatMessage> {
         const newMessage = await messageRepository.create({
             sender: data.sender,
+            senderName: data.senderName,
             receiver: data.receiver,
             roomId: data.roomId,
             message: data.message || '',

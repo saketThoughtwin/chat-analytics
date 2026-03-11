@@ -8,6 +8,7 @@ import { useAuthStore } from "./authStore";
 interface Message {
   _id: string;
   sender: string;
+  senderName?: string;
   roomId: string;
   message: string;
   type?: 'text' | 'image' | 'video' | 'audio' | 'system';

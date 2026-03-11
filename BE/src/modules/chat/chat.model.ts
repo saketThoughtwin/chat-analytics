@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatMessage extends Document {
   sender?: string;
+  senderName?: string;
 
   receiver?: string; // For backward compatibility, but roomId is now primary
   roomId: string; // Now required - all messages belong to a room
@@ -22,6 +23,7 @@ export interface IChatMessage extends Document {
 const ChatSchema = new Schema<IChatMessage>(
   {
     sender: { type: String, required: false, index: true },
+    senderName: { type: String },
     receiver: { type: String }, // Optional for backward compatibility
     roomId: { type: String, required: true, index: true },
     message: { type: String, required: false },
