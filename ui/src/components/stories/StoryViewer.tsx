@@ -10,6 +10,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -425,7 +426,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
             </Dialog>
 
             {/* Delete Confirmation Modal */}
-            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+            <Dialog open={deleteConfirmOpen} onClose={() => { if (!deleting) setDeleteConfirmOpen(false); }}>
                 <DialogTitle>Delete status update?</DialogTitle>
                 <DialogContent>
                     <Typography>This status update will be deleted for everyone.</Typography>
@@ -433,7 +434,7 @@ export default function StoryViewer({ open, onClose, group }: StoryViewerProps) 
                 <DialogActions>
                     <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>Cancel</Button>
                     <Button onClick={handleDelete} color="error" variant="contained" disabled={deleting}>
-                        {deleting ? "Deleting..." : "Delete"}
+                        {deleting ? <CircularProgress size={18} color="inherit" /> : "Delete"}
                     </Button>
                 </DialogActions>
             </Dialog>

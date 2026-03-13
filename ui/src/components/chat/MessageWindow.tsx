@@ -20,6 +20,7 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  CircularProgress,
   Snackbar,
   Alert,
 } from "@mui/material";
@@ -270,6 +271,7 @@ export default function MessageWindow() {
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [leaveTargetRoomId, setLeaveTargetRoomId] = useState<string | null>(null);
+  const [leavingGroup, setLeavingGroup] = useState(false);
 
   const {
     activeRoomId,
@@ -329,6 +331,7 @@ export default function MessageWindow() {
     null,
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingMessage, setDeletingMessage] = useState(false);
 
   const handleMessageMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
@@ -350,11 +353,22 @@ export default function MessageWindow() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (selectedMessageId) {
+    if (!selectedMessageId || deletingMessage) return;
+    setDeletingMessage(true);
+    try {
       await deleteMessage(selectedMessageId);
+      setDeleteDialogOpen(false);
+      setSelectedMessageId(null);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to delete message.";
+      setSnackbarMessage(msg);
+      setSnackbarOpen(true);
+    } finally {
+      setDeletingMessage(false);
     }
-    setDeleteDialogOpen(false);
-    setSelectedMessageId(null);
   };
 
   const handleStarClick = async () => {
@@ -890,7 +904,7 @@ export default function MessageWindow() {
 
       <Dialog
         open={leaveConfirmOpen}
-        onClose={() => setLeaveConfirmOpen(false)}
+        onClose={() => { if (!leavingGroup) setLeaveConfirmOpen(false); }}
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
         <DialogTitle>Leave group?</DialogTitle>
@@ -900,22 +914,35 @@ export default function MessageWindow() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setLeaveConfirmOpen(false)} color="inherit" sx={{ borderRadius: 2 }}>
+          <Button onClick={() => setLeaveConfirmOpen(false)} disabled={leavingGroup} color="inherit" sx={{ borderRadius: 2 }}>
             Cancel
           </Button>
           <Button
             onClick={async () => {
-              if (!leaveTargetRoomId) return;
-              await leaveRoom(leaveTargetRoomId);
-              setLeaveConfirmOpen(false);
-              setLeaveTargetRoomId(null);
-              router.push("/");
+              if (!leaveTargetRoomId || leavingGroup) return;
+              setLeavingGroup(true);
+              try {
+                await leaveRoom(leaveTargetRoomId);
+                setLeaveConfirmOpen(false);
+                setLeaveTargetRoomId(null);
+                router.push("/");
+              } catch (err: any) {
+                const msg =
+                  err?.response?.data?.message ||
+                  err?.message ||
+                  "Failed to leave group.";
+                setSnackbarMessage(msg);
+                setSnackbarOpen(true);
+              } finally {
+                setLeavingGroup(false);
+              }
             }}
             color="error"
             variant="contained"
+            disabled={leavingGroup}
             sx={{ borderRadius: 2, boxShadow: "none" }}
           >
-            Leave
+            {leavingGroup ? <CircularProgress size={18} color="inherit" /> : "Leave"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1720,7 +1747,7 @@ export default function MessageWindow() {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={() => { if (!deletingMessage) setDeleteDialogOpen(false); }}
         PaperProps={{
           sx: { borderRadius: 3 },
         }}
@@ -1736,6 +1763,7 @@ export default function MessageWindow() {
           <Button
             onClick={() => setDeleteDialogOpen(false)}
             color="inherit"
+            disabled={deletingMessage}
             sx={{ borderRadius: 2 }}
           >
             Cancel
@@ -1744,9 +1772,10 @@ export default function MessageWindow() {
             onClick={handleDeleteConfirm}
             color="error"
             variant="contained"
+            disabled={deletingMessage}
             sx={{ borderRadius: 2, boxShadow: "none" }}
           >
-            Delete
+            {deletingMessage ? <CircularProgress size={18} color="inherit" /> : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>

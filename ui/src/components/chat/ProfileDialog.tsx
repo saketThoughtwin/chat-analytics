@@ -332,7 +332,7 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
                         Cancel
                     </Button>
                     <Button onClick={handleRemoveAvatar} color="error" variant="contained" disabled={loading} sx={{ borderRadius: 2, boxShadow: "none" }}>
-                        Remove
+                        {loading ? <CircularProgress size={18} color="inherit" /> : "Remove"}
                     </Button>
                 </DialogActions>
             </Dialog>

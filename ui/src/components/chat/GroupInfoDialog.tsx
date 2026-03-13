@@ -22,7 +22,8 @@ import {
     ListItemButton,
     Divider,
     Paper,
-    DialogContentText
+    DialogContentText,
+    CircularProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -225,13 +226,13 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
     };
 
     const handleRemoveUserClick = (userId: string) => {
+        if (saving) return;
         setUserToRemove(userId);
         setRemovalConfirmOpen(true);
     };
 
     const handleConfirmRemoval = async () => {
-        if (!userToRemove) return;
-        setRemovalConfirmOpen(false);
+        if (!userToRemove || saving) return;
         setSaving(true);
         try {
             const currentParticipantIds = room?.participants.map((p) => (p._id || p)) || [];
@@ -242,6 +243,8 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
             console.error('Failed to remove user', error);
         } finally {
             setSaving(false);
+            setRemovalConfirmOpen(false);
+            setUserToRemove(null);
         }
     };
 
@@ -453,7 +456,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
             {/* Removal Confirmation Dialog */}
             <Dialog
                 open={removalConfirmOpen}
-                onClose={() => setRemovalConfirmOpen(false)}
+                onClose={() => { if (!saving) setRemovalConfirmOpen(false); }}
                 PaperProps={{ sx: { borderRadius: 3 } }}
             >
                 <DialogTitle>Remove Member?</DialogTitle>
@@ -463,11 +466,11 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setRemovalConfirmOpen(false)} color="inherit" sx={{ borderRadius: 2 }}>
+                    <Button onClick={() => setRemovalConfirmOpen(false)} color="inherit" disabled={saving} sx={{ borderRadius: 2 }}>
                         Cancel
                     </Button>
-                    <Button onClick={handleConfirmRemoval} color="error" variant="contained" sx={{ borderRadius: 2, boxShadow: 'none' }}>
-                        Remove
+                    <Button onClick={handleConfirmRemoval} color="error" variant="contained" disabled={saving} sx={{ borderRadius: 2, boxShadow: 'none' }}>
+                        {saving ? <CircularProgress size={18} color="inherit" /> : 'Remove'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -503,7 +506,7 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                         disabled={saving}
                         sx={{ borderRadius: 2, boxShadow: 'none' }}
                     >
-                        Remove
+                        {saving ? <CircularProgress size={18} color="inherit" /> : 'Remove'}
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -22,6 +22,7 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  CircularProgress,
   Snackbar,
   Alert,
   Fab,
@@ -112,6 +113,7 @@ export default function RoomList() {
 
   // Deletion Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<string | null>(null);
 
   // Success Snackbar State
@@ -198,25 +200,26 @@ export default function RoomList() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (roomToDelete) {
-      try {
-        await deleteRoom(roomToDelete);
-        setSnackbarMessage("Chat deleted successfully.");
-        setSnackbarOpen(true);
-      } catch (err: any) {
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          "Failed to delete chat.";
-        setSnackbarMessage(msg);
-        setSnackbarOpen(true);
-      }
+    if (!roomToDelete || deletingRoom) return;
+    setDeletingRoom(true);
+    try {
+      await deleteRoom(roomToDelete);
+      setSnackbarMessage("Chat deleted successfully.");
+      setSnackbarOpen(true);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message || err?.message || "Failed to delete chat.";
+      setSnackbarMessage(msg);
+      setSnackbarOpen(true);
+    } finally {
+      setDeletingRoom(false);
+      setDeleteDialogOpen(false);
+      setRoomToDelete(null);
     }
-    setDeleteDialogOpen(false);
-    setRoomToDelete(null);
   };
 
   const handleDeleteCancel = () => {
+    if (deletingRoom) return;
     setDeleteDialogOpen(false);
     setRoomToDelete(null);
   };
@@ -669,7 +672,7 @@ export default function RoomList() {
       {/* Deletion Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
+        onClose={() => { if (!deletingRoom) handleDeleteCancel(); }}
         aria-labelledby="delete-dialog-title"
         aria-describedby="delete-dialog-description"
       >
@@ -682,7 +685,7 @@ export default function RoomList() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
+          <Button onClick={handleDeleteCancel} color="primary" disabled={deletingRoom}>
             Cancel
           </Button>
           <Button
@@ -690,8 +693,9 @@ export default function RoomList() {
             color="error"
             autoFocus
             variant="contained"
+            disabled={deletingRoom}
           >
-            Delete
+            {deletingRoom ? <CircularProgress size={18} color="inherit" /> : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
