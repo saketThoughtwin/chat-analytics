@@ -861,6 +861,9 @@ export default class ChatController {
         });
 
         io.to(roomId).emit("receive_message", systemMsg);
+        // Newly-added members may not have joined the Socket.IO room yet, so also
+        // emit to their personal channel to show it instantly.
+        io.to(newId.toString()).emit("receive_message", systemMsg);
 
         // Push room update to the newly-added user's channel so their room list updates live
         const latestRoomForNewUser = await roomService.getRoomById(roomId);
