@@ -1356,7 +1356,7 @@ export default function MessageWindow() {
                                   sx={{ fontSize: 14, color: "#53bdeb" }}
                                   titleAccess="Read by all"
                                 />
-                              ) : msg.deliveredAt ? (
+                              ) : msg.deliveredAt || msg.delivered ? (
                                 <DoneAllIcon
                                   sx={{
                                     fontSize: 14,

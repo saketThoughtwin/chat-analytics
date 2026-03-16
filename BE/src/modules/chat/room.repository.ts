@@ -113,7 +113,7 @@ class RoomRepository {
         // Actually, Room model doesn't import ChatMessage.
         // Let's use the ChatMessage model from outside.
         const ChatMessage = (await import("./chat.model")).default;
-        return ChatMessage.findOne({ roomId, deleted: false })
+        return ChatMessage.findOne({ roomId, deleted: false, type: { $ne: "system" } })
             .sort({ createdAt: -1 })
             .lean()
             .exec();

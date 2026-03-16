@@ -694,6 +694,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log("Socket: receive_message", message);
       const { activeRoomId } = get();
       const currentUserId = useAuthStore.getState().user?.id;
+      const isSystemMessage = message.type === "system";
       const roomForMessage = get().rooms.find((r) => r._id === message.roomId);
       if (roomForMessage && currentUserId) {
         const isActiveParticipant = roomForMessage.participants?.some(
@@ -736,9 +737,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         let newRooms = [...state.rooms];
 
         if (roomExists) {
-          newRooms = newRooms
-            .map((r) => {
+          const mappedRooms = newRooms.map((r) => {
               if (r._id === message.roomId) {
+                if (isSystemMessage) {
+                  return r;
+                }
+
                 const isMe = message.sender === currentUserId;
                 const isRoomActive = message.roomId === activeRoomId;
 
@@ -778,12 +782,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 };
               }
               return r;
-            })
-            .sort((a, b) => {
-              if (a._id === message.roomId) return -1;
-              if (b._id === message.roomId) return 1;
-              return 0;
             });
+
+          newRooms = isSystemMessage
+            ? mappedRooms
+            : mappedRooms.sort((a, b) => {
+                if (a._id === message.roomId) return -1;
+                if (b._id === message.roomId) return 1;
+                return 0;
+              });
         }
 
         // Update cache as well
@@ -835,30 +842,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
     socket.on("message_delivered", ({ messageId, roomId, userId, at }) => {
       console.log("Socket: message_delivered", { messageId, roomId, userId, at });
       set((state) => {
+        const deliveredAt = at || new Date().toISOString();
+        const room = state.rooms.find((r) => r._id === roomId);
+        const leftIds = new Set(
+          (room?.leftParticipants || [])
+            .map((p: any) => (p?._id || p)?.toString?.())
+            .filter(Boolean),
+        );
+        const activeParticipants =
+          room?.participants?.filter((p: any) => {
+            const id = (p?._id || p)?.toString?.();
+            return !id || !leftIds.has(id);
+          }) || [];
+        const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+
         const updateMsg = (m: Message) => {
           if (m._id !== messageId) return m;
-	          const deliveredTo = m.deliveredTo || [];
-	          const room = state.rooms.find(r => r._id === roomId);
-	          const leftIds = new Set(
-	            (room?.leftParticipants || [])
-	              .map((p: any) => (p?._id || p)?.toString?.())
-	              .filter(Boolean),
-	          );
-	          const activeParticipants = room?.participants?.filter(
-	            (p: any) => !leftIds.has((p?._id || p)?.toString?.()),
-	          ) || [];
-	          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
+          const currentDeliveredTo = m.deliveredTo || [];
+          const updatedDeliveredTo =
+            userId && !currentDeliveredTo.some((d: any) => d.userId === userId)
+              ? [...currentDeliveredTo, { userId, at: deliveredAt }]
+              : currentDeliveredTo;
 
-          if (userId && !deliveredTo.some((d: any) => d.userId === userId)) {
-            const updatedDeliveredTo = [...deliveredTo, { userId, at: at || new Date().toISOString() }];
-            const isEveryoneDelivered = updatedDeliveredTo.length >= otherParticipantsCount && otherParticipantsCount > 0;
-            return {
-              ...m,
-              delivered: isEveryoneDelivered,
-              deliveredTo: updatedDeliveredTo
-            };
-          }
-          return m;
+          const isEveryoneDelivered = userId
+            ? updatedDeliveredTo.length >= otherParticipantsCount &&
+              otherParticipantsCount > 0
+            : true;
+
+          return {
+            ...m,
+            delivered: m.delivered || isEveryoneDelivered,
+            deliveredAt:
+              isEveryoneDelivered ? m.deliveredAt || deliveredAt : m.deliveredAt,
+            deliveredTo: updatedDeliveredTo,
+          };
         };
 
         return {
@@ -893,9 +910,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 	              .map((p: any) => (p?._id || p)?.toString?.())
 	              .filter(Boolean),
 	          );
-	          const activeParticipants = room?.participants?.filter(
-	            (p: any) => !leftIds.has((p?._id || p)?.toString?.()),
-	          ) || [];
+	          const activeParticipants =
+	            room?.participants?.filter((p: any) => {
+	              const id = (p?._id || p)?.toString?.();
+	              return !id || !leftIds.has(id);
+	            }) || [];
 	          const otherParticipantsCount = Math.max(0, activeParticipants.length - 1);
 	          const isEveryoneRead = updatedReadBy.length >= otherParticipantsCount && otherParticipantsCount > 0;
 

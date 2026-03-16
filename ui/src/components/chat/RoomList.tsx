@@ -46,6 +46,16 @@ import ProfileDialog from "./ProfileDialog";
 import Spinner from "../ui/Spinner";
 import { formatSystemText } from "../../lib/systemMessage";
 
+const isSystemLikeRoomPreview = (text?: string) => {
+  if (!text) return false;
+  return (
+    /^(.+?) created group "(.+)"$/.test(text) ||
+    /^(.+?) added (.+)$/.test(text) ||
+    /^(.+?) removed (.+)$/.test(text) ||
+    /^(.+?) left$/.test(text)
+  );
+};
+
 // Utility function to get relative time
 const getRelativeTime = (dateString: string) => {
   const now = new Date();
@@ -83,7 +93,7 @@ export default function RoomList() {
     fetchAllStarredMessages,
     stories,
     fetchStories,
-    totalOnlineCount,
+    messagesCache,
   } = useChatStore();
 
   const { user: currentUser, logout } = useAuthStore();
@@ -102,6 +112,10 @@ export default function RoomList() {
       });
     });
   }, [stories, currentUser]);
+
+  const unreadChatsCount = React.useMemo(() => {
+    return rooms.filter((room) => (room.unreadCount ?? 0) > 0).length;
+  }, [rooms]);
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false);
@@ -394,7 +408,9 @@ export default function RoomList() {
             }
           }}
         >
-          <Tab label="Chats" />
+          <Tab
+            label={`Chats${unreadChatsCount > 0 ? `(${unreadChatsCount})` : ""}`}
+          />
           <Tab
             label={
               <Badge
@@ -472,6 +488,31 @@ export default function RoomList() {
                 const otherUser = isGroup ? null : getOtherParticipant(room);
                 const isOnline = !isGroup && onlineUsers.includes(otherUser?._id);
 
+                const roomPreviewText = (room as any).lastMessagePreview as
+                  | string
+                  | undefined;
+                const isSystemLastMessage =
+                  room.lastMessage?.type === "system" ||
+                  isSystemLikeRoomPreview(roomPreviewText) ||
+                  isSystemLikeRoomPreview(room.lastMessage?.message);
+
+                const cached = messagesCache[room._id] || [];
+                const cachedLastNonSystemMessage = isSystemLastMessage
+                  ? [...cached]
+                      .reverse()
+                      .find((m) => !m.deleted && m.type !== "system")
+                  : undefined;
+
+                const displayLastMessage = cachedLastNonSystemMessage
+                  ? cachedLastNonSystemMessage
+                  : isSystemLastMessage
+                    ? undefined
+                    : room.lastMessage;
+                const displayLastMessagePreview = cachedLastNonSystemMessage
+                  ? undefined
+                  : isSystemLastMessage
+                    ? undefined
+                    : roomPreviewText;
 
                 return (
                   <ListItem
@@ -585,7 +626,8 @@ export default function RoomList() {
                             >
                               {isGroup ? room.name : otherUser?.name || "Unknown"}
                             </Typography>
-                            {(room.lastMessage?.createdAt || (room.lastMessage as any)?.timestamp) && (
+                            {(displayLastMessage?.createdAt ||
+                              (displayLastMessage as any)?.timestamp) && (
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -596,7 +638,10 @@ export default function RoomList() {
                                   whiteSpace: "nowrap"
                                 }}
                               >
-                                {getRelativeTime(room.lastMessage!.createdAt || (room.lastMessage as any).timestamp)}
+                                {getRelativeTime(
+                                  displayLastMessage!.createdAt ||
+                                    (displayLastMessage as any).timestamp,
+                                )}
                               </Typography>
                             )}
                           </Box>
@@ -618,16 +663,23 @@ export default function RoomList() {
                                 >
                                   typing...
                                 </span>
-                              ) : room.lastMessage?.deleted ? (
+                              ) : displayLastMessage?.deleted ? (
                                 <span style={{ fontStyle: "italic", opacity: 0.7 }}>
                                   This message was deleted
                                 </span>
-                              ) : (room as any).lastMessagePreview ? (
-                                formatSystemText((room as any).lastMessagePreview, currentUser?.name)
-                              ) : room.lastMessage?.type === "audio" ? (
+                              ) : displayLastMessagePreview ? (
+                                formatSystemText(displayLastMessagePreview, currentUser?.name)
+                              ) : displayLastMessage?.type === "image" ? (
+                                "📷 Photo"
+                              ) : displayLastMessage?.type === "video" ? (
+                                "🎥 Video"
+                              ) : displayLastMessage?.type === "audio" ? (
                                 "🎤 Voice message"
                               ) : (
-                                formatSystemText(room.lastMessage?.message || "No messages yet", currentUser?.name)
+                                formatSystemText(
+                                  displayLastMessage?.message || "No messages yet",
+                                  currentUser?.name,
+                                )
                               )}
                             </Typography>
                             {(room.unreadCount ?? 0) > 0 && (

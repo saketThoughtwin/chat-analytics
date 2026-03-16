@@ -15,10 +15,12 @@ const createSystemMessageAndBumpRoom = async ({
   roomId,
   text,
   bumpedByUserId,
+  bumpRoom = false,
 }: {
   roomId: string;
   text: string;
   bumpedByUserId: string;
+  bumpRoom?: boolean;
 }) => {
   const systemMsg = await messageRepository.create({
     sender: undefined,
@@ -29,12 +31,14 @@ const createSystemMessageAndBumpRoom = async ({
     deleted: false,
   });
 
-  await roomService.updateRoomLastMessage(
-    roomId,
-    systemMsg._id.toString(),
-    text,
-    bumpedByUserId,
-  );
+  if (bumpRoom) {
+    await roomService.updateRoomLastMessage(
+      roomId,
+      systemMsg._id.toString(),
+      text,
+      bumpedByUserId,
+    );
+  }
 
   return systemMsg;
 };

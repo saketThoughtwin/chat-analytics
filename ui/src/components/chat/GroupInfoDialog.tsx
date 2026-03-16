@@ -449,9 +449,6 @@ export default function GroupInfoDialog({ open, onClose, roomId }: GroupInfoDial
                     )}
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} fullWidth variant="outlined" sx={{ borderRadius: '8px' }}>Close</Button>
-            </DialogActions>
 
             {/* Removal Confirmation Dialog */}
             <Dialog
