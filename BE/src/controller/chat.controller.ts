@@ -22,7 +22,7 @@ const createSystemMessageAndBumpRoom = async ({
   bumpedByUserId: string;
   bumpRoom?: boolean;
 }) => {
-  const systemMsg = await messageRepository.create({
+  const systemMsgDoc = await messageRepository.create({
     sender: undefined,
     roomId,
     message: text,
@@ -34,13 +34,24 @@ const createSystemMessageAndBumpRoom = async ({
   if (bumpRoom) {
     await roomService.updateRoomLastMessage(
       roomId,
-      systemMsg._id.toString(),
+      systemMsgDoc._id.toString(),
       text,
       bumpedByUserId,
     );
   }
 
-  return systemMsg;
+  // Ensure the emitted payload is a plain JSON object (stable across Socket.IO serialization)
+  const raw =
+    systemMsgDoc && typeof (systemMsgDoc as any).toObject === "function"
+      ? (systemMsgDoc as any).toObject()
+      : (systemMsgDoc as any);
+  return {
+    ...raw,
+    _id: systemMsgDoc._id.toString(),
+    roomId: roomId.toString(),
+    message: text,
+    type: "system",
+  };
 };
 
 export default class ChatController {
@@ -860,10 +871,11 @@ export default class ChatController {
           bumpedByUserId: userId!,
         });
 
-        io.to(roomId).emit("receive_message", systemMsg);
-        // Newly-added members may not have joined the Socket.IO room yet, so also
-        // emit to their personal channel to show it instantly.
-        io.to(newId.toString()).emit("receive_message", systemMsg);
+        // Emit to user channels so it shows instantly even if sockets
+        // haven't joined the room yet (and across multiple devices).
+        normalizedNew.forEach((id: string) =>
+          io.to(id.toString()).emit("receive_message", systemMsg),
+        );
 
         // Push room update to the newly-added user's channel so their room list updates live
         const latestRoomForNewUser = await roomService.getRoomById(roomId);
@@ -893,13 +905,26 @@ export default class ChatController {
           bumpedByUserId: userId!,
         });
 
-        io.to(roomId).emit("receive_message", systemMsg);
+        // Notify remaining members + removed user instantly via user channels.
+        Array.from(new Set([...normalizedNew, removedId.toString()])).forEach(
+          (id: string) => io.to(id.toString()).emit("receive_message", systemMsg),
+        );
+        // Also remove the room from the removed user's UI instantly.
+        io.to(removedId.toString()).emit("room_deleted", { roomId });
       }
     }
 
     // Notify participants of the update (ensure lastMessage is fresh if system messages were created)
     const latestRoom = await roomService.getRoomById(roomId);
-    io.to(roomId).emit("room_update", toPlainRoom(latestRoom || updatedRoom));
+    const payload = toPlainRoom(latestRoom || updatedRoom);
+    io.to(roomId).emit("room_update", payload);
+    // Also emit to user channels to keep UIs in sync even when sockets aren't in the room.
+    if (payload?.participants?.length) {
+      const participantIds = (payload.participants || [])
+        .map((p: any) => (p?._id || p)?.toString?.())
+        .filter(Boolean);
+      participantIds.forEach((id: string) => io.to(id).emit("room_update", payload));
+    }
 
     res.json(updatedRoom);
   }
@@ -1018,9 +1043,16 @@ export default class ChatController {
 
     if (updatedRoom) {
       // Notify remaining participants
-      io.to(roomId).emit("receive_message", systemMsg);
+      const remainingParticipantIds = (updatedRoom.participants || [])
+        .map((p: any) => (p?._id || p)?.toString?.())
+        .filter(Boolean);
+      Array.from(new Set([...remainingParticipantIds, userId!])).forEach(
+        (id: string) => io.to(id).emit("receive_message", systemMsg),
+      );
       const latestRoom = await roomService.getRoomById(roomId);
-      io.to(roomId).emit("room_update", toPlainRoom(latestRoom || updatedRoom));
+      const payload = toPlainRoom(latestRoom || updatedRoom);
+      io.to(roomId).emit("room_update", payload);
+      remainingParticipantIds.forEach((id: string) => io.to(id).emit("room_update", payload));
     }
 
     res
